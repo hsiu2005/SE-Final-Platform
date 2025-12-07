@@ -39,7 +39,7 @@ git push -u origin feature/extension2_rating
 
 #### ⚠️ 第三步：複製指令 (請依負責模組選擇)
 
-為了防止衝突，請直接複製你負責的那一塊指令，貼進終端機按 Enter 執行即可：
+為了防止衝突，請直接複製你負責的那一塊指令(建議一行一行貼，比較不會出錯)，貼進終端機按 Enter 執行即可：
 
 **🧑‍💻 負責【延伸二：評價機制】的同學請貼這串：**
 
@@ -85,5 +85,7 @@ git fetch --all
   * 看我的部分：`git checkout feature/extension1_bidding`
   * 看首頁說明：`git checkout main`
   * 切回自己的：`git checkout [你的分支名稱]`
+
+### 有任何問題都可以提出來一起討論，謝謝大家！
 
 
