@@ -15,6 +15,7 @@
 ### 2. 如何開始？(如果看完還是不確定要怎麼做可以往下滑，我有整理懶人包，照著做就可以了)
 請依照負責的模組，將原本的期中專案程式碼推送到對應分支：
 
+```powershell
 # 範例：負責評價機制的同學
 git init
 git checkout -b feature/extension2_rating
@@ -22,6 +23,7 @@ git add .
 git commit -m "Init: Upload Extension 2"
 git remote add origin [https://github.com/hsiu2005/SE-Final-Platform.git](https://github.com/hsiu2005/SE-Final-Platform.git)
 git push -u origin feature/extension2_rating
+```
 -----
 
 ### 📢 期末專題 GitHub 上傳懶人包
