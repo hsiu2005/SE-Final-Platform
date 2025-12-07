@@ -21,7 +21,7 @@ git init
 git checkout -b feature/extension2_rating
 git add .
 git commit -m "Init: Upload Extension 2"
-git remote add origin [https://github.com/hsiu2005/SE-Final-Platform.git](https://github.com/hsiu2005/SE-Final-Platform.git)
+git remote add origin https://github.com/hsiu2005/SE-Final-Platform.git
 git push -u origin feature/extension2_rating
 ```
 -----
@@ -46,6 +46,7 @@ git push -u origin feature/extension2_rating
 ```powershell
 # 清除舊設定以防衝突
 rm -Recurse -Force .git
+
 # 初始化並上傳到專屬分支
 git init
 git checkout -b feature/extension2_rating
@@ -60,6 +61,7 @@ git push -u origin feature/extension2_rating
 ```powershell
 # 清除舊設定以防衝突
 rm -Recurse -Force .git
+
 # 初始化並上傳到專屬分支
 git init
 git checkout -b feature/extension3_issue
