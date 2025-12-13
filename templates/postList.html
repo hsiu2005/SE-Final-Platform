@@ -1,0 +1,396 @@
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script type="text/javascript" src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+
+<body >
+<a href="/logout">Logout</a>
+<P>
+	<a href="/">Back Home</a>
+</P>
+{% raw %}
+<div id="main">
+	<h1>我的委託</h1>
+	<hr/>
+	<div v-for="item in dat" :key="item.id">
+		
+		<div v-if="item.username === currentUser">
+		<div v-if="item.finish == false">
+			
+			<p>
+				案件編號:{{ item.id }}
+			</p>
+			<p>
+				委託內容:{{ item.content }}
+			</p>
+
+			<div v-if="item.winner">
+				<p>
+					接案人:{{ item.winner }}
+				</p>
+				<p>
+					接案價格:{{ item.winnerprice }}
+				</p>
+			</div>
+			
+			<div v-else>
+				<p>
+					<em>(尚未決標)</em>
+				</p>
+			</div>
+			<div v-if="item.filename">
+				<a :href="'/uploads/' + item.filename" :download="item.filename">
+					download {{ item.filename }}
+				</a>
+			</div>
+			<input type='button'  @click="methods.readPost(item.id)" value="檢視/提出議題">
+			<input type='button'  @click="methods.changeFinish(item.id)" value="接受">
+			<input type='button'  @click="methods.delCases(item.id)" value="退件">
+			<hr/>
+		</div>	
+		</div>
+	</div>
+	<div>
+	<h1>討論區</h1>
+	<hr/>
+	<p>
+	案件編號: {{rec.id}}
+	</p>
+	<form id="myForm">
+		提出議題:<input type="text" v-model="newIssue" ><br>
+		<input type='button'  @click="methods.addIssue(rec.id,newIssue)" value="發送">
+	</form>
+	<hr/>
+	<div v-for="(issue, index) in rec.issues" :key="issue.issue_id">
+	<p>
+	議題編號: {{issue.issue_id}}
+	</p>
+	<div v-if="issue.finish == false">
+	<p>
+	議題狀態: {{"開放"}}
+	</p>
+	</div>
+	<div v-else>
+	<p>
+	議題狀態: {{"關閉"}}
+	</p>
+	</div>
+	<p>
+	議題內容: {{issue.issuecontent}}
+	</p>
+	<div v-for="(reply, index) in rec.replies" :key="reply.issue_id">
+		<div v-if="reply.issue_id === issue.issue_id">
+	<p>
+	回覆內容: {{[reply.username]}}{{reply.replycontent}}
+	</p>
+		</div>
+	</div>
+	<div v-if="issue.finish == false">
+	<form id="myForm">
+		回覆:<input type="text" v-model="newReply" ><br>
+		<input type='button'  @click="methods.addReply(rec.id,issue.issue_id,newReply)" value="發送">
+	</form>
+	</div>
+	<div v-if="issue.finish == false">
+	<input type='button'  @click="methods.changeIssueFinish(issue.id)" value="結束議題">
+	</div>
+	<hr/>
+	</div>
+	</div>
+	<div>
+	<h1>歷史委託</h1>
+	<hr/>
+    <div v-for="item in dat" :key="item.id"> 
+		<div v-if="item.username === currentUser">
+		<div v-if="item.finish == true">
+	    	<p>
+			案件編號:{{item.id}}
+			</p>
+			<p>
+			委託內容:{{item.content}}
+			</p>
+			<p>
+			接案人:{{ item.winner }}
+			</p>
+			<p>
+			接案價格:{{ item.winnerprice }}
+			</p>
+	    <hr/>
+		</div>
+		</div>
+	</div>
+</div>
+{% endraw %}
+<script type="text/javascript">
+const { createApp, ref, reactive, onMounted } = Vue;
+
+app=createApp({
+  setup() {
+	const newContent = ref('');
+	const newPrice = ref('');
+	const newIssue = ref('');
+	const newReply = ref('');
+	const role=ref('admin');
+	const rec=ref({});
+	const dat=ref([]);
+	const selectedFile = ref(null);
+	const applies=ref([]);
+	const currentUser = ref('');
+	
+	const methods={
+		loadList: () => {
+		  // This runs after the component is mounted to the DOM
+			let url="/getPostsJson";
+			//let that=this;
+			fetch(url,{
+				method: 'GET'
+			})
+			.then(function(res){return res.json(); }) //取得傳回值，轉為文字
+			.then(function(json){
+			console.log(json);
+				dat.value=json;
+			})
+			
+		},
+		loadUser: () => {
+            fetch('/getUser')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.username) {
+                        currentUser.value = data.username;
+                        console.log('Current user:', data.username);
+                    } else {
+                        console.log('User not logged in.');
+                    }
+                });
+        },
+		loadApplies: (id) => {
+		    let url="/readApplyJson/"+id;
+		    fetch(url,{
+		        method: 'GET'
+		    })
+		    .then(function(res){return res.json(); })
+		    .then(function(json){
+		        applies.value=json; 
+                console.log('Applies List:', json);
+		    })
+		},
+
+		readPost: (id) => {
+		  // This runs after the component is mounted to the DOM
+			let url="/readPostJson/"+id;
+			//let that=this;
+			fetch(url,{
+				method: 'GET'
+			})
+			.then(function(res){return res.json(); }) //取得傳回值，轉為文字
+			.then(function(json){
+			console.log(json);
+				rec.value=json;
+				applies.value = [];
+				methods.loadApplies(id);
+			})
+			
+		},	
+		addPost: (content) => {
+			//let that=this;
+			const formData = new FormData();
+			formData.append('content', content);
+			fetch('/addPost', {
+				method: 'POST',
+				body: formData
+			})
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+		addPrice: (id,price) => {
+		    const formData = new FormData();
+			formData.append('id', id);
+    		formData.append('price', price);
+
+    		fetch('/addPrice', {
+	   			method: 'POST',
+    			body: formData 
+    		})
+    		.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+				methods.loadApplies(id);
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+		addWinner: (id, item) => {
+		    const formData = new FormData();
+			formData.append('id', id);
+    		formData.append('winner', item.username);
+    		formData.append('winnerprice', item.price);			
+    		fetch('/chooseWinner', { 
+	   			method: 'POST',
+    			body: formData 
+    		})
+    		.then(response => response.text()) 
+			.then(data => {
+				console.log('Server response:', data);
+				methods.readPost(id); 
+			})
+			.catch(error => { 
+				console.error('Error:', error);
+			});
+        },
+		addIssue: (id, issuecontent) => {
+			//let that=this;
+			const formData = new FormData();
+			formData.append('id', id);
+			formData.append('issuecontent', issuecontent);
+			fetch('/addIssue', {
+				method: 'POST',
+				body: formData
+			})
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+		addReply: (id, issue_id, replycontent) => {
+			//let that=this;
+			const formData = new FormData();
+			formData.append('id', id);
+			formData.append('issue_id', issue_id);
+			formData.append('replycontent', replycontent);
+			fetch('/addReply', {
+				method: 'POST',
+				body: formData
+			})
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.readPost();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+		delPost: (id) => {
+			//let that=this;
+			const URL="/delete/" +id;
+			fetch(URL)
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+		delCases: (id) => {
+			//let that=this;
+			const URL="/delCases/" +id;
+			fetch(URL)
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+
+		changeFinish: (id) => {
+			//let that=this;
+			const URL="/changeFinish/" +id;
+			fetch(URL)
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+
+		changeIssueFinish: (id) => {
+			//let that=this;
+			const URL="/changeIssueFinish/" +id;
+			fetch(URL)
+			.then(response => response.text())
+			.then(data => {
+				console.log('Server response:', data);
+				methods.loadList();
+			})
+			.catch(error => {
+				console.error('Error:', error);
+			});
+		},
+
+		handleFileChange: (event) => {
+			selectedFile.value = event.target.files[0];
+		},		
+		uploadFile: async () => {
+			if (selectedFile.value) {
+				const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+				if (!allowedTypes.includes(selectedFile.value.type)) {
+					console.log('Invalid file type. Please upload a PNG, JPEG, or PDF.');
+					selectedFile.value = null; // Clear the invalid file
+				} else {
+					console.log('Selected file:', selectedFile.value.name);
+					console.log('rec id:', rec.value.id);
+					// Further fetch processing
+					const formData = new FormData();
+					formData.append('uploadedFile', selectedFile.value); // 'file' is the field name your server expects
+					formData.append('msg',rec.value.id); //the postID
+					try {
+						const response = await fetch('/api/upload', {
+							method: 'POST',
+							body: formData,
+						});
+
+						if (response.ok) {
+							const data = await response.json();
+							console.log('Upload successful:', data);
+							// Handle success (e.g., clear selected file, show message)
+							selectedFile.value = null;
+							methods.readPost(rec.id);
+						} else {
+						  console.error('Upload failed:', response.statusText);
+						  // Handle error
+						}
+					} catch (error) {
+						console.error('Network error during upload:', error);
+						// Handle network errors
+					}
+				}
+			} else {
+				console.log("No file selected.");
+			}
+		}
+	}; //end of methods
+
+	onMounted(() => {
+	console.log('App mounted!');
+		methods.loadList();
+		methods.loadUser();
+		console.log('App mounted! loadlist');
+	});
+
+    return { currentUser,newContent,newPrice,newReply, newIssue, rec, dat,role,selectedFile,methods,applies};
+  }
+}).mount('#main');
+</script>
+
+</body></html>
