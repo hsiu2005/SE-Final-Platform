@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>案件詳情</title>
+  <style>
+    :root { --border:#e5e7eb; --muted:#6b7280; --head:#f3f4f6; }
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 16px; max-width: 900px; margin: auto; background-color: #fff7e5; }
+    h1 { margin: 0 0 12px; }
+    h2 { margin: 24px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .toolbar { margin: 8px 0 16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid var(--border); padding: 10px 8px; vertical-align: top; }
+    th { background: var(--head); text-align: left; width: 120px; }
+    tr:hover { background: #fafafa; }
+    .btn { display: inline-block; padding: 6px 10px; border: 1px solid #aaa; border-radius: 6px; text-decoration: none; color: #222; background:#fff; cursor: pointer; }
+    .btn:hover { background: #f5f5f5; }
+    .btn.primary { background:#007bff; color:#fff; border-color:#007bff; }
+    .btn.success { background:#28a745; color:#fff; border-color:#28a745; }
+    .btn.danger  { background:#dc3545; color:#fff; border-color:#dc3545; }
+    .muted { color: var(--muted); }
+    #error { color: #b30000; margin: 8px 0; font-weight: bold; }
+    .note { white-space: pre-wrap; word-break: break-word; }
+    .job-info-table th { width: 100px; }
+    .panel { background: #f9f9f9; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .panel-title { font-weight: bold; font-size: 1.1em; margin: 0 0 12px; }
+    textarea { width: 98%; padding: 8px; font-size: 1em; border-radius: 4px; border: 1px solid #ccc; }
+    .status-alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+    .alert-success { background-color: #d4edda; border:1px solid #c3e6cb; color: #155724; }
+    .alert-danger  { background-color: #f8d7da; border:1px solid #f5c6cb; color: #721c24; }
+    .alert-info    { background-color: #d1ecf1; border:1px solid #bee5eb; color: #0c5460; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .badge-yellow { background-color: #fff3c7; color: #7a6b1f; }
+    
+    /* Modal styles included from style.css */
+    .modal { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+    .modal-content { background-color: #fff; margin: 10% auto; padding: 24px; border-radius: 16px; border: 1px solid var(--border-soft); width: 90%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
+    .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .review-item { border-bottom: 1px solid #eee; padding: 12px 0; }
+    .review-stars { color: #f5c518; font-weight: bold; }
+    .review-text { background: #f9f9f9; padding: 8px; border-radius: 8px; color: #333; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <span id="who" class="muted"></span>
+  <h1>案件詳情：<span id="jobTitle"></span></h1>
+  <div class="toolbar">
+    <a class="btn" href="/">← 回我的案件列表</a>
+    <a class="btn" href="/logout">登出</a>
+  </div>
+
+  <div id="error"></div>
+  <div id="status-alert-panel" style="display:none;"></div>
+
+  <h2>案件資訊</h2>
+  <table class="job-info-table">
+    <tr><th>ID</th><td id="info-id"></td></tr>
+    <tr><th>狀態</th><td id="info-status"></td></tr>
+    <tr><th>委託人</th><td id="info-client"></td></tr>
+    <tr><th>內容</th><td id="info-content"></td></tr>
+    <tr><th>預算</th><td id="info-budget"></td></tr>
+    <tr><th>截止日</th><td id="info-due-date"></td></tr>
+  </table>
+
+  <div id="client-panel" style="display:none;">
+    <div id="client-bids-panel">
+      <h2>報價列表</h2>
+      <table id="bidsTable" class="bids-table">
+        <thead><tr><th>承包人</th><th>報價金額</th><th>留言</th><th>提案書</th><th>動作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="client-review-panel" class="panel" style="display:none;">
+      <div class="panel-title">審核承包人上傳的成果</div>
+      <p><a id="download-link" href="#" class="btn primary" download>下載結案檔案</a></p>
+      <form action="/job/review" method="POST">
+        <input type="hidden" name="job_id" id="review-job-id">
+        <textarea name="message" rows="3" placeholder="若選擇退件，請在此說明理由..."></textarea><br><br>
+        <button class="btn primary" type="submit" name="decision" value="closed">驗收結案</button>
+        <button class="btn danger" type="submit" name="decision" value="rejected">退件</button>
+      </form>
+    </div>
+    <div id="client-accepted-panel" class="panel" style="display:none;">
+      <div class="panel-title">最終承接人資訊</div>
+      <table class="job-info-table">
+        <tr id="win-contractor-row"><th>承接廠商</th><td id="win-contractor"></td></tr>
+        <tr id="win-price-row"><th>承接金額</th><td id="win-price"></td></tr>
+        <tr id="win-note-row"><th>廠商備註</th><td id="win-note"></td></tr>
+        <tr id="win-proposal-row"><th>提案書</th><td id="win-proposal"></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div id="contractor-panel" style="display:none;">
+    <div id="contractor-invite-panel" class="panel" style="display:none;">
+      <div class="panel-title">您收到了此案件的邀請</div>
+      <p>委託人 <b id="invite-client-name"></b> 邀請您。</p>
+      <p><b>預算：<span id="invite-price" style="font-weight:bold; color:#007bff;"></span></b></p>
+      <form action="/invitation/accept" method="POST" style="display:inline-block;"><input type="hidden" name="job_id" id="invite-job-id-acc" /><button class="btn success" type="submit">接受</button></form>
+      <form action="/invitation/decline" method="POST" style="display:inline-block;"><input type="hidden" name="job_id" id="invite-job-id-dec" /><button class="btn danger" type="submit">婉拒</button></form>
+    </div>
+    <div id="contractor-win-panel" class="panel" style="display:none;">
+        <div class="panel-title">您的得標資訊</div>
+        <table class="job-info-table">
+            <tr><th>您的報價</th><td id="my-win-price"></td></tr>
+            <tr><th>您的備註</th><td id="my-win-note"></td></tr>
+            <tr><th>提案書</th><td id="my-win-proposal"></td></tr>
+        </table>
+    </div>
+    <div id="contractor-invite-win-panel" class="panel" style="display:none;">
+        <div class="panel-title">您的承接資訊</div>
+        <table class="job-info-table"><tr><th>承接預算</th><td id="my-invite-win-price"></td></tr></table>
+    </div>
+    <div id="contractor-upload-panel" class="panel" style="display:none;">
+      <div class="panel-title">上傳結案檔案</div>
+      <form action="/job/upload" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="job_id" id="upload-job-id"><input type="file" name="report_file" required><br><button class="btn primary" type="submit">上傳檔案</button>
+      </form>
+    </div>
+    <div id="contractor-review-panel" class="panel" style="display:none;">
+      <div class="panel-title">等待委託人驗收</div>
+      <p><a id="contractor-download-link" href="#" class="btn" download>下載您上傳的檔案</a></p>
+    </div>
+  </div>
+
+  <div id="visitor-panel" class="panel" style="display:none;"></div>
+  <div id="result-history-panel" class="panel" style="display:none;"></div>
+
+  <div id="review-action-panel" class="panel" style="display:none; text-align:center;">
+      <div class="panel-title">評價合作對象</div>
+      <p>案件已結案，您可以對此次合作進行評價。</p>
+      <a id="btn-go-review" href="#" class="btn primary">前往評價</a>
+  </div>
+
+  <div id="reviewModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeReviewModal()">&times;</span>
+      <h2 style="margin-top:0;">評價紀錄</h2>
+      <div id="modal-loading" class="muted">載入中...</div>
+      <div id="modal-body" style="display:none;">
+        <div style="background:#fffaf1; padding:12px; border-radius:8px; margin-bottom:16px;">
+          <div style="font-size:1.2em; font-weight:bold; color:#f5c518;">平均 <span id="modal-avg"></span> 分 <span style="font-size:0.6em; color:#666;">(共 <span id="modal-count"></span> 筆)</span></div>
+          <div class="muted" style="font-size:0.9em; margin-top:4px;" id="modal-dims"></div>
+        </div>
+        <div id="modal-list" style="max-height:300px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchJSON(url, options={}) {
+      const resp = await fetch(url, options);
+      if (resp.status===401) { window.location.href="/loginForm.html"; return null; }
+      if (resp.redirected) { window.location.href=resp.url; return null; }
+      if (!resp.ok) { document.getElementById("error").textContent=`API Error: ${await resp.text()}`; return null; }
+      return await resp.json();
+    }
+    const escapeHTML=s=>s==null?"":String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const currency=new Intl.NumberFormat("zh-Hant-TW",{style:"currency",currency:"TWD",maximumFractionDigits:0});
+    const fmtMoney=n=>n==null?"N/A":currency.format(Number(n));
+    const fmtDate=iso=>!iso?"N/A":new Date(iso).toLocaleDateString();
+    const fmtDateTime=iso=>!iso?"N/A":new Date(iso).toLocaleString();
+
+    const params = new URLSearchParams(location.search);
+    const jobId = params.get("job_id");
+
+    function renderStatusBadge(status) {
+      return `<span class="badge badge-yellow">${escapeHTML(status||"")}</span>`;
+    }
+    function renderStars(score, userId, role) {
+        if (score == null) return '<span class="muted" style="font-size:0.8em; display:block; margin-top:2px;">(暫無評價)</span>';
+        return `<div style="margin-top:2px; cursor:pointer;" onclick="openReviewModal(${userId}, '${role}')" title="點擊查看詳細評論">
+                <span style="color:#f5c518;">★</span> 
+                <span style="text-decoration:underline; color:#555;">${Number(score).toFixed(1)}</span></div>`;
+    }
+
+    const reviewModal = document.getElementById("reviewModal");
+    function closeReviewModal() { reviewModal.style.display = "none"; }
+    window.onclick = function(event) { if (event.target == reviewModal) closeReviewModal(); }
+
+    async function openReviewModal(userId, role) {
+      reviewModal.style.display = "block";
+      document.getElementById("modal-loading").style.display = "block";
+      document.getElementById("modal-body").style.display = "none";
+      try {
+        const data = await fetchJSON(`/api/reviews/${userId}?role=${role}`);
+        if (!data) return;
+        const stats = data.stats;
+        document.getElementById("modal-avg").textContent = Number(stats.avg_total||0).toFixed(1);
+        document.getElementById("modal-count").textContent = stats.count;
+        let dimNames = role === 'client' ? ["需求合理", "驗收難度", "合作態度"] : ["產出品質", "執行效率", "合作態度"];
+        document.getElementById("modal-dims").innerHTML = `${dimNames[0]}: <b>${Number(stats.avg_r1||0).toFixed(1)}</b> | ${dimNames[1]}: <b>${Number(stats.avg_r2||0).toFixed(1)}</b> | ${dimNames[2]}: <b>${Number(stats.avg_r3||0).toFixed(1)}</b>`;
+        const listEl = document.getElementById("modal-list");
+        listEl.innerHTML = "";
+        if (data.comments.length === 0) listEl.innerHTML = `<div class="review-empty">無文字評論</div>`;
+        else {
+          data.comments.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "review-item";
+            div.innerHTML = `<div class="review-header"><span><b>${escapeHTML(c.from_name)}</b> <span class="muted">(${fmtDate(c.created_at)})</span></span><span class="review-stars">★ ${((c.rating_1+c.rating_2+c.rating_3)/3).toFixed(1)}</span></div><div class="review-text">${c.comment?escapeHTML(c.comment):'<span class="muted">無文字</span>'}</div>`;
+            listEl.appendChild(div);
+          });
+        }
+        document.getElementById("modal-loading").style.display = "none";
+        document.getElementById("modal-body").style.display = "block";
+      } catch (e) { alert("Error: "+e); closeReviewModal(); }
+    }
+
+    async function loadPage() {
+      if (!jobId) { document.getElementById("error").textContent = "Missing job_id"; return; }
+      const me = await fetchJSON("/me"); if (!me) return;
+      document.getElementById("who").textContent = `登入中：${me.role} ${me.username}`;
+
+      const data = await fetchJSON(`/job/${jobId}/detail`); if (!data) return;
+      const job = data.job; const role = data.user_job_role; const bids = data.bids||[];
+
+      document.getElementById("jobTitle").textContent = job.title;
+      document.getElementById("info-id").textContent = job.id;
+      document.getElementById("info-status").innerHTML = renderStatusBadge(job.status);
+      document.getElementById("info-client").textContent = job.client_name;
+      document.getElementById("info-content").textContent = job.content;
+      document.getElementById("info-budget").textContent = fmtMoney(job.budget);
+      document.getElementById("info-due-date").textContent = fmtDate(job.due_date);
+
+      if (job.status === 'rejected' && data.last_rejection) {
+        const p = document.getElementById("status-alert-panel");
+        p.innerHTML = `<div class="status-alert alert-danger"><b>被退件：</b>${escapeHTML(data.last_rejection.message)}</div>`;
+        p.style.display = 'block';
+      } else if (job.status === 'closed') {
+        const p = document.getElementById("status-alert-panel");
+        p.innerHTML = `<div class="status-alert alert-success">案件已結案</div>`;
+        p.style.display = 'block';
+      }
+
+      if (role === 'client') {
+        document.getElementById("client-panel").style.display = 'block';
+        if (job.status === 'pending') {
+          document.getElementById("client-bids-panel").style.display = 'block';
+          const tbody = document.querySelector("#bidsTable tbody");
+          if (bids.length === 0) tbody.innerHTML = `<tr><td colspan="5" class="muted">無人報價</td></tr>`;
+          else {
+            bids.forEach(b => {
+              const tr = document.createElement("tr");
+              const prop = b.proposal_file ? `<a class="btn" href="/uploads/${b.proposal_file}" download>下載</a>` : "無";
+              tr.innerHTML = `<td>${escapeHTML(b.contractor_name)}<br>${renderStars(b.contractor_avg_rating, b.contractor_id, 'contractor')}</td><td>${fmtMoney(b.price)}</td><td>${escapeHTML(b.note)}</td><td>${prop}</td><td><form action="/bid/accept" method="POST" onsubmit="return confirm('確定選標？')"><input type="hidden" name="job_id" value="${job.id}"><input type="hidden" name="bid_id" value="${b.id}"><button class="btn primary">選擇</button></form></td>`;
+              tbody.appendChild(tr);
+            });
+          }
+        }
+        if (job.status === 'uploaded') {
+          document.getElementById("client-review-panel").style.display = 'block';
+          document.getElementById("review-job-id").value = job.id;
+          document.getElementById("download-link").href = `/uploads/${job.report_file}`;
+        }
+        if (job.contractor_id) {
+           document.getElementById("client-accepted-panel").style.display = 'block';
+           document.getElementById("win-contractor").textContent = job.contractor_name;
+           // ... (省略部分顯示得標詳情代碼，維持原樣) ...
+           if (data.winning_bid) {
+               document.getElementById("win-price").textContent = fmtMoney(data.winning_bid.price);
+           } else {
+               document.getElementById("win-price").textContent = fmtMoney(job.budget);
+           }
+        }
+      } else if (role === 'contractor') {
+        document.getElementById("contractor-panel").style.display = 'block';
+        if (job.status === 'invited') {
+             document.getElementById("contractor-invite-panel").style.display = 'block';
+             document.getElementById("invite-client-name").textContent = job.client_name;
+             document.getElementById("invite-price").textContent = fmtMoney(job.budget);
+             document.getElementById("invite-job-id-acc").value = job.id;
+             document.getElementById("invite-job-id-dec").value = job.id;
+        }
+        if (data.winning_bid) {
+             document.getElementById("contractor-win-panel").style.display = 'block';
+             document.getElementById("my-win-price").textContent = fmtMoney(data.winning_bid.price);
+        } else if (job.status !== 'pending' && job.status !== 'invited') {
+             document.getElementById("contractor-invite-win-panel").style.display = 'block';
+             document.getElementById("my-invite-win-price").textContent = fmtMoney(job.budget);
+        }
+        if (job.status === 'accepted' || job.status === 'rejected') {
+             document.getElementById("contractor-upload-panel").style.display = 'block';
+             document.getElementById("upload-job-id").value = job.id;
+        }
+        if (job.status === 'uploaded') {
+             document.getElementById("contractor-review-panel").style.display = 'block';
+             document.getElementById("contractor-download-link").href = `/uploads/${job.report_file}`;
+        }
+      } else if (role === 'visitor_contractor') {
+        document.getElementById("visitor-panel").style.display = 'block';
+        document.getElementById("visitor-panel").textContent = "您只能瀏覽此案件或已報價但未得標。";
+      }
+
+      if (data.result_files && data.result_files.length > 0) {
+          const h = document.getElementById("result-history-panel");
+          h.innerHTML = `<div class="panel-title">檔案版本歷史</div>`;
+          data.result_files.forEach(f => {
+              h.innerHTML += `<div>v${f.version} - <a href="/uploads/${f.file_path}" download>${escapeHTML(f.original_name)}</a> (${fmtDate(f.uploaded_at)})</div>`;
+          });
+          h.style.display = 'block';
+      }
+
+      if (job.status === 'closed' && (role === 'client' || role === 'contractor')) {
+          document.getElementById("review-action-panel").style.display = 'block';
+          const targetRole = role === 'client' ? 'contractor' : 'client';
+          document.getElementById("btn-go-review").href = `/reviewForm.html?job_id=${job.id}&target_role=${targetRole}`;
+      }
+    }
+    loadPage();
+  </script>
+</body>
+</html>

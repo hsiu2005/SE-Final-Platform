@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>承包人：我的報價 / 案件</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div><h1 class="page-title">承包人：我的報價 / 案件</h1></div>
+      <span id="who" class="who-tag"></span>
+    </header>
+
+    <div class="toolbar">
+      <a class="btn btn-secondary" href="/contractorMyInvitations.html">我的邀請</a>
+      <a class="btn btn-primary" href="/contractorJobs.html">瀏覽可報價案件</a>
+      <span class="toolbar-spacer"></span>
+      <a class="btn btn-secondary" href="/history.html">歷史紀錄</a>
+      <a class="btn btn-secondary" href="/logout">登出</a>
+    </div>
+
+    <div class="card">
+      <div id="error" class="error-text"></div>
+      <div class="table-wrapper">
+        <table id="jobsTable" class="table">
+          <thead><tr><th>ID</th><th>標題</th><th>委託人</th><th>案件狀態</th><th>我的報價</th><th>我的狀態</th><th>動作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="reviewModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeReviewModal()">&times;</span>
+      <h2 style="margin-top:0;">評價紀錄</h2>
+      <div id="modal-loading" class="muted">載入中...</div>
+      <div id="modal-body" style="display:none;">
+        <div style="background:#fffaf1; padding:12px; border-radius:8px; margin-bottom:16px;">
+          <div style="font-size:1.2em; font-weight:bold; color:#f5c518;">平均 <span id="modal-avg"></span> 分 <span style="font-size:0.6em; color:#666;">(共 <span id="modal-count"></span> 筆)</span></div>
+          <div class="muted" style="font-size:0.9em; margin-top:4px;" id="modal-dims"></div>
+        </div>
+        <div id="modal-list" style="max-height:300px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchJSON(url){
+      const r=await fetch(url);
+      if(r.status===401||r.redirected){location.href="/loginForm.html";return null;}
+      return r.json();
+    }
+    const escapeHTML=s=>s==null?"":String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+    const fmtMoney=n=>n==null?"-":new Intl.NumberFormat("zh-Hant-TW",{style:"currency",currency:"TWD",maximumFractionDigits:0}).format(n);
+    const fmtDate=iso=>iso?new Date(iso).toLocaleDateString():"";
+
+    const reviewModal = document.getElementById("reviewModal");
+    function closeReviewModal() { reviewModal.style.display = "none"; }
+    window.onclick = function(event) { if (event.target == reviewModal) closeReviewModal(); }
+
+    function renderStars(score, userId, role) {
+        if (score == null) return '<span class="muted" style="font-size:0.8em; display:block; margin-top:2px;">(暫無評價)</span>';
+        return `<div style="margin-top:2px; cursor:pointer;" onclick="openReviewModal(${userId}, '${role}')" title="點擊查看詳細評論">
+                <span style="color:#f5c518;">★</span> 
+                <span style="text-decoration:underline; color:#555;">${Number(score).toFixed(1)}</span></div>`;
+    }
+
+    async function openReviewModal(userId, role) {
+      reviewModal.style.display = "block";
+      document.getElementById("modal-loading").style.display = "block";
+      document.getElementById("modal-body").style.display = "none";
+      try {
+        const data = await fetchJSON(`/api/reviews/${userId}?role=${role}`);
+        if (!data) return;
+        const stats = data.stats;
+        document.getElementById("modal-avg").textContent = Number(stats.avg_total||0).toFixed(1);
+        document.getElementById("modal-count").textContent = stats.count;
+        let dimNames = ["需求合理", "驗收難度", "合作態度"];
+        document.getElementById("modal-dims").innerHTML = `${dimNames[0]}: <b>${Number(stats.avg_r1||0).toFixed(1)}</b> | ${dimNames[1]}: <b>${Number(stats.avg_r2||0).toFixed(1)}</b> | ${dimNames[2]}: <b>${Number(stats.avg_r3||0).toFixed(1)}</b>`;
+        const listEl = document.getElementById("modal-list");
+        listEl.innerHTML = "";
+        if (data.comments.length === 0) listEl.innerHTML = `<div class="review-empty">無文字評論</div>`;
+        else {
+          data.comments.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "review-item";
+            div.innerHTML = `<div class="review-header"><span><b>${escapeHTML(c.from_name)}</b> <span class="muted">(${fmtDate(c.created_at)})</span></span><span class="review-stars">★ ${((c.rating_1+c.rating_2+c.rating_3)/3).toFixed(1)}</span></div><div class="review-text">${c.comment?escapeHTML(c.comment):'<span class="muted">無文字</span>'}</div>`;
+            listEl.appendChild(div);
+          });
+        }
+        document.getElementById("modal-loading").style.display = "none";
+        document.getElementById("modal-body").style.display = "block";
+      } catch (e) { alert("Error: "+e); closeReviewModal(); }
+    }
+
+    async function loadJobs() {
+      // 1. 取得使用者資訊 (包含自己的評分)
+      const me = await fetchJSON("/me");
+      if(me) {
+          // 顯示：登入中：contractor admin ★ 4.5
+          const starText = me.rating ? ` <span style="color:#f5c518; margin-left:5px;">★ ${Number(me.rating).toFixed(1)}</span>` : "";
+          document.getElementById("who").innerHTML = `登入中：${me.role} ${me.username}${starText}`;
+      }
+
+      // 2. 取得列表資料
+      const data = await fetchJSON("/contractor/my-jobs");
+      if(!data) return;
+      
+      const tbody = document.querySelector("#jobsTable tbody");
+      tbody.innerHTML = "";
+      if (!data.items || data.items.length === 0) {
+        tbody.innerHTML = `<td colspan="7" class="text-muted">無案件</td>`;
+        return;
+      }
+
+      for (const j of data.items) {
+        let myStatus = "";
+        if (j.status === "pending") myStatus = '<span class="text-muted">待選標</span>';
+        else if (j.am_i_winner) {
+          if (j.status === "rejected") myStatus = '<span class="badge badge-yellow">被退件</span>';
+          else myStatus = `<span class="badge badge-green">得標 (${escapeHTML(j.status)})</span>`;
+        } else myStatus = `<span class="text-muted">未得標 (${escapeHTML(j.status)})</span>`;
+
+        const tr = document.createElement("tr");
+
+        // 在這裡加入委託人的平均星星
+        // 參數：分數, 委託人ID, 角色='client'(因為我們是看委託人)
+        const clientRating = renderStars(j.client_avg_rating, j.client_id, 'client');
+
+        tr.innerHTML = `
+          <td>${j.id}</td>
+          <td>${escapeHTML(j.title)}</td>
+          <td>
+            ${escapeHTML(j.client_name)}
+            <br>${clientRating}
+          </td>
+          <td>${escapeHTML(j.status)}</td>
+          <td>${fmtMoney(j.my_bid_price)}</td>
+          <td>${myStatus}</td>
+          <td><a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${j.id}">詳情</a></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+    loadJobs();
+  </script>
+</body>
+</html>

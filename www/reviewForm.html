@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>填寫評價</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .star-rating { display: flex; gap: 8px; font-size: 24px; color: #ccc; cursor: pointer; }
+    .star-rating .star { transition: color 0.2s; }
+    .star-rating .star.active { color: #f5c518; }
+    .dim-row { margin-bottom: 20px; }
+    .dim-label { display: block; font-weight: bold; margin-bottom: 6px; }
+  </style>
+</head>
+<body class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <h1 class="page-title">填寫評價</h1>
+      <p class="page-subtitle">請對本次合作對象進行評分與回饋。</p>
+    </header>
+    <div class="card">
+      <form id="reviewForm" action="/review/add" method="POST">
+        <input type="hidden" name="job_id" id="jobId">
+        <div id="dimensions-container"></div>
+        <div class="form-row">
+          <label class="form-label">質性評語 (Comment)</label>
+          <textarea name="comment" class="form-control" rows="4" placeholder="請寫下您的具體意見..."></textarea>
+        </div>
+        <div class="button-row">
+          <button type="submit" class="btn btn-primary">送出評價</button>
+          <a href="#" onclick="history.back()" class="btn btn-ghost">取消</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const jobId = params.get("job_id");
+    const targetRole = params.get("target_role"); 
+    document.getElementById("jobId").value = jobId;
+
+    let dims = [];
+    if (targetRole === 'client') {
+      dims = ["需求合理性", "驗收難度", "合作態度"];
+    } else {
+      dims = ["產出品質", "執行效率", "合作態度"];
+    }
+
+    const container = document.getElementById("dimensions-container");
+    dims.forEach((name, index) => {
+      const idx = index + 1;
+      const div = document.createElement("div");
+      div.className = "dim-row";
+      div.innerHTML = `
+        <span class="dim-label">${name}</span>
+        <div class="star-rating" data-idx="${idx}">
+          <span class="star" data-val="1">★</span>
+          <span class="star" data-val="2">★</span>
+          <span class="star" data-val="3">★</span>
+          <span class="star" data-val="4">★</span>
+          <span class="star" data-val="5">★</span>
+        </div>
+        <input type="hidden" name="rating_${idx}" id="input_rating_${idx}" value="5" required>
+        <span class="muted" id="text_rating_${idx}">5 分</span>
+      `;
+      container.appendChild(div);
+    });
+
+    document.querySelectorAll('.star-rating').forEach(group => {
+      const idx = group.dataset.idx;
+      const input = document.getElementById(`input_rating_${idx}`);
+      const text = document.getElementById(`text_rating_${idx}`);
+      const stars = group.querySelectorAll('.star');
+      stars.forEach(s => s.classList.add('active'));
+      stars.forEach(star => {
+        star.addEventListener('click', () => {
+          const val = star.dataset.val;
+          input.value = val;
+          text.textContent = val + " 分";
+          stars.forEach(s => {
+            if (s.dataset.val <= val) s.classList.add('active');
+            else s.classList.remove('active');
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
