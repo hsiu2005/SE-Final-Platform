@@ -58,8 +58,6 @@ app.include_router(rating_router)
 app.include_router(issue_router)
 app.include_router(rating_public_router)
 
-
-
 # ========== 靜態檔案 ==========
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)
