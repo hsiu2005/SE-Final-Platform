@@ -10,6 +10,9 @@ from routes_auth import router as auth_router
 from routes_client import router as client_router
 from routes_contractor import router as contractor_router
 from routes_job import router as job_router
+from routes_rating import router as rating_router
+from routes_issue import router as issue_router
+from routes_rating_public import router as rating_public_router
 
 
 app = FastAPI()
@@ -51,6 +54,10 @@ app.include_router(auth_router)
 app.include_router(client_router)
 app.include_router(contractor_router)
 app.include_router(job_router)
+app.include_router(rating_router)
+app.include_router(issue_router)
+app.include_router(rating_public_router)
+
 
 
 # ========== 靜態檔案 ==========
