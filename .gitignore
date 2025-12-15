@@ -1,8 +1,10 @@
 __pycache__/
 *.pyc
+*.py[cod]
 *.pyo
 *.pyd
 .pytest_cache/
 ~$*.pptx
 *.docx
+uploads/
 

@@ -72,15 +72,16 @@ async def rate_client(
             )
             VALUES (%s, %s, %s, 'client', %s, %s, %s, %s)
             ON CONFLICT (job_id, rater_id, target_id, target_role)
-            DO UPDATE SET
-                dim1 = EXCLUDED.dim1,
-                dim2 = EXCLUDED.dim2,
-                dim3 = EXCLUDED.dim3,
-                comment = EXCLUDED.comment,
-                created_at = NOW()
+            DO NOTHING
             """,
             (job_id, contractor_id, job["client_id"], dim1, dim2, dim3, comment),
         )
+
+        if cur.rowcount == 0:
+            return RedirectResponse(
+                url=f"/jobDetail.html?job_id={job_id}&toast=你已經送出過評價（送出後不可修改）",
+                status_code=303,
+            )
 
     return RedirectResponse(
         url=f"/jobDetail.html?job_id={job_id}&toast=已成功評價委託人",
@@ -117,15 +118,16 @@ async def rate_contractor(
             )
             VALUES (%s, %s, %s, 'contractor', %s, %s, %s, %s)
             ON CONFLICT (job_id, rater_id, target_id, target_role)
-            DO UPDATE SET
-                dim1 = EXCLUDED.dim1,
-                dim2 = EXCLUDED.dim2,
-                dim3 = EXCLUDED.dim3,
-                comment = EXCLUDED.comment,
-                created_at = NOW()
+            DO NOTHING
             """,
             (job_id, client_id, job["contractor_id"], dim1, dim2, dim3, comment),
         )
+
+        if cur.rowcount == 0:
+            return RedirectResponse(
+                url=f"/jobDetail.html?job_id={job_id}&toast=你已經送出過評價（送出後不可修改）",
+                status_code=303,
+            )
 
     return RedirectResponse(
         url=f"/jobDetail.html?job_id={job_id}&toast=已成功評價承包人",

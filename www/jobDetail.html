@@ -136,6 +136,8 @@
     <tr><th>截止日</th><td id="info-due-date"></td></tr>
   </table>
 
+  <div id="client-rating-summary" class="panel" style="display:none;"></div>
+
   <!-- 委託人區塊 -->
   <div id="client-panel" style="display:none;">
     <div id="client-bids-panel">
@@ -325,6 +327,55 @@
       history.replaceState(null, "", location.pathname + "?" + p.toString());
     })();
 
+    // ✅ 共用：渲染某個使用者的評價摘要（client / contractor）
+    async function renderUserRatingSummary(targetUserId, asTargetRole, mountEl) {
+      const resp = await fetch(`/user/${targetUserId}/rating-summary?as_target_role=${asTargetRole}`, {
+        credentials: "include"
+      });
+
+      if (!resp.ok) {
+        mountEl.innerHTML = `<div class="panel-title">過往評價</div><p class="muted">（暫時無法取得評價摘要）</p>`;
+        return;
+      }
+
+      const json = await resp.json();
+      if (!json.success) {
+        mountEl.innerHTML = `<div class="panel-title">過往評價</div><p class="muted">（目前沒有評價資料）</p>`;
+        return;
+      }
+
+      const d = json.data || {};
+      const comments = (d.recent_comments || []).slice(0, 3);
+
+      // ✅ 這行是關鍵：依被評角色拿維度名稱
+      const labels = RATING_DIM_LABELS_BY_TARGET[asTargetRole] || ["維度1","維度2","維度3"];
+
+      mountEl.innerHTML = `
+        <div class="panel-title">過往評價（${asTargetRole === "client" ? "委託人" : "承包人"}）</div>
+        <div>平均總分：<b>${Number(d.avg_overall || 0).toFixed(1)}</b>（共 ${d.count || 0} 筆）</div>
+        <div class="muted" style="margin-top:6px;">
+          ${labels[0]}：${Number(d.avg_dim1 || 0).toFixed(1)}　
+          ${labels[1]}：${Number(d.avg_dim2 || 0).toFixed(1)}　
+          ${labels[2]}：${Number(d.avg_dim3 || 0).toFixed(1)}
+        </div>
+
+        <div style="margin-top:10px;">
+          <b>近期質性意見：</b>
+          ${comments.length === 0
+            ? `<div class="muted">（沒有留言）</div>`
+            : comments.map(c => `
+                <div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;background:#fff;">
+                  ${escapeHTML(c.comment || "")}
+                  <div class="muted"><small>${c.created_at ? fmtDateTime(c.created_at) : ""}</small></div>
+                </div>
+              `).join("")
+          }
+        </div>
+      `;
+    }
+
+
+
     // ----------------------------
     // 主頁內容
     // ----------------------------
@@ -338,17 +389,45 @@
 
       const job = data.job;
       const bids = data.bids || [];
-      const role = data.user_job_role;
+      //const role = data.user_job_role;
       const lastRejection = data.last_rejection;
       const winningBid = data.winning_bid;
       const resultFiles = data.result_files || [];
       const myBid = data.my_bid || null;
       const isInvited = data.is_invited || false;
+      const roleRaw = data.user_job_role;
+      const role = roleRaw === "visitor_contractor" ? "visitor" : roleRaw;
+
+// 若你需要知道「這個人其實是承包人身分」
+const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contractor");
+
 
       jobTitleEl.textContent = job.title;
       infoId.textContent = job.id;
       infoStatus.innerHTML = renderStatusBadge(job.status);
       infoClient.textContent = `${escapeHTML(job.client_name)} (#${job.client_id})`;
+      // ✅ 乙方/訪客看需求：顯示甲方（委託人）過往評價
+      const clientRatingBox = document.getElementById("client-rating-summary");
+      /*
+      if (clientRatingBox) {
+        if (role === "contractor" || role === "visitor") {
+          clientRatingBox.style.display = "block";
+          await renderUserRatingSummary(job.client_id, "client", clientRatingBox);
+        } else {
+          clientRatingBox.style.display = "none";
+        }
+      }
+      */
+
+      if (clientRatingBox) {
+        if (isContractorLike) {
+          clientRatingBox.style.display = "block";
+          await renderUserRatingSummary(job.client_id, "client", clientRatingBox);
+        } else {
+          clientRatingBox.style.display = "none";
+        }
+      }
+
       infoContent.textContent = job.content;
       infoBudget.textContent = job.budget == null ? "—" : fmtMoney(job.budget);
       infoDueDate.textContent = job.due_date ? fmtDate(job.due_date) : "—";
@@ -374,15 +453,20 @@
         const tbody = document.querySelector("#bidsTable tbody");
         tbody.innerHTML = "";
         if (bids.length === 0) {
-          clientBidsPanel.innerHTML += `<p class="muted">目前尚無任何報價。</p>`;
+          clientBidsPanel.innerHTML = `<h2>報價列表</h2><p class="muted">目前尚無任何報價。</p>`;
         } else {
           bids.forEach(b => {
+            console.log("bid object:", b);
             const tr = document.createElement("tr");
             const proposalCell = b.proposal_file
               ? `<a class="btn" href="/uploads/${encodeURIComponent(b.proposal_file)}" download="${escapeHTML(b.proposal_original_name || "proposal.pdf")}">下載</a>`
               : `<span class="muted">(無)</span>`;
             tr.innerHTML = `
-              <td>${escapeHTML(b.contractor_name)}</td>
+              <td>
+                <div><b>${escapeHTML(b.contractor_name)}</b></div>
+                <button class="btn" type="button" data-show-rating="${b.contractor_id}">查看評價</button>
+                <div id="rating-box-${b.contractor_id}" style="margin-top:8px; display:none;"></div>
+              </td>
               <td>${fmtMoney(b.price)}</td>
               <td class="note">${escapeHTML(b.note || "")}</td>
               <td>${proposalCell}</td>
@@ -396,6 +480,26 @@
             `;
             tbody.appendChild(tr);
           });
+          // ✅ 甲方看提案：點按鈕才載入乙方（承包人）評價摘要
+          document.querySelectorAll("[data-show-rating]").forEach(btn => {
+            btn.addEventListener("click", async () => {
+              const uid = btn.getAttribute("data-show-rating");
+              const box = document.getElementById(`rating-box-${uid}`);
+              if (!box) return;
+
+              // 已載入過：切換顯示/隱藏
+              if (box.dataset.loaded === "1") {
+                box.style.display = (box.style.display === "none") ? "block" : "none";
+                return;
+              }
+
+              box.dataset.loaded = "1";
+              box.style.display = "block";
+              box.innerHTML = `<p class="muted">載入中...</p>`;
+              await renderUserRatingSummary(uid, "contractor", box);
+            });
+          });
+
         }
 
         if (job.status === 'uploaded') {
@@ -429,8 +533,8 @@
       }
 
       // ---- 承包人視角 ----
-      if (role === 'contractor') {
-        contractorPanel.style.display = 'block';
+      if (isContractorLike) {
+          contractorPanel.style.display = 'block';
 
         if (job.status === 'invited' && isInvited) {
           contractorInvitePanel.style.display = 'block';
@@ -551,7 +655,9 @@
           return;
         }
 
-        issues = await resp.json();
+        const payload = await resp.json();
+        issues = payload?.data?.issues ?? payload?.issues ?? payload ?? [];
+
       } catch (e) {
         console.error("loadIssuesPanel fetch error:", e);
         issuePanel.innerHTML = `
@@ -725,8 +831,9 @@
           return;
         }
 
-        const data = await resp.json();
-        const ratings = data.ratings || [];
+        const payload = await resp.json();
+        const ratings = payload?.data?.ratings ?? payload?.ratings ?? payload ?? [];
+
 
         if (ratings.length === 0) {
           box.innerHTML = `<p class="muted">目前尚無評價紀錄（可先送出你的評價）。</p>`;
@@ -769,6 +876,7 @@
     // ----------------------------
     // Extension 初始化（只跑一次，不重複）
     // ----------------------------
+    /*
     async function initExtensionPanels() {
       if (!jobId) return;
 
@@ -779,18 +887,22 @@
       if (!data) return;
 
       const job = data.job;
-      const role = data.user_job_role;
+      //const role = data.user_job_role;
 
       // Issue 只給：委託人 or 得標承包人
       const isClient = (role === "client");
       const isWinnerContractor = (job.contractor_id && me.user_id === job.contractor_id);
       const canUseIssue = isClient || isWinnerContractor;
+      const roleRaw = data.user_job_role;
+      const role = roleRaw === "visitor_contractor" ? "visitor" : roleRaw;
+      const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contractor");
+
 
       // extensionRole：避免 user_job_role 回 visitor 導致顯示錯
       const extensionRole =
         isClient ? "client" :
         isWinnerContractor ? "contractor" :
-        role;
+        (isContractorLike ? "visitor" : role);
 
       if (canUseIssue) {
         await loadIssuesPanel(job.id, extensionRole, job.status);
@@ -805,6 +917,47 @@
         ratingPanel.style.display = "none";
       }
     }
+    */
+   async function initExtensionPanels() {
+  if (!jobId) return;
+
+  const me = await fetchJSON("/me");
+  if (!me) return;
+
+  const data = await fetchJSON(`/job/${jobId}/detail`);
+  if (!data) return;
+
+  const job = data.job;
+
+  // ✅ 先處理 role
+  const roleRaw = data.user_job_role;
+  const role = (roleRaw === "visitor_contractor") ? "visitor" : roleRaw;
+  const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contractor");
+
+  // ✅ 再算權限
+  const isClient = (role === "client");
+  const isWinnerContractor = (job.contractor_id && me.user_id === job.contractor_id);
+  const canUseIssue = isClient || isWinnerContractor;
+
+  const extensionRole =
+    isClient ? "client" :
+    isWinnerContractor ? "contractor" :
+    (isContractorLike ? "visitor" : role);
+
+  if (canUseIssue) {
+    await loadIssuesPanel(job.id, extensionRole, job.status);
+  } else {
+    issuePanel.style.display = "none";
+  }
+
+  if (job.status === "closed") {
+    renderRatingPanel(job, extensionRole);
+    await loadRatingsPanel(job.id);
+  } else {
+    ratingPanel.style.display = "none";
+  }
+}
+
 
     // ----------------------------
     // 啟動
