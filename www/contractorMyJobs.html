@@ -8,7 +8,6 @@
 </head>
 <body class="page">
   <div class="page-inner">
-    <!-- 頁首：標題 + 登入身分 -->
     <header class="page-header">
       <div>
         <h1 class="page-title">承包人：我的報價 / 案件</h1>
@@ -19,21 +18,40 @@
       <span id="who" class="who-tag"></span>
     </header>
 
-    <!-- 工具列按鈕：左邊是「我的邀請 / 可報價案件」，右邊是其他功能 -->
     <div class="toolbar">
       <a class="btn btn-secondary" href="/contractorMyInvitations.html">我的邀請</a>
       <a class="btn btn-primary" href="/contractorJobs.html">瀏覽可報價案件</a>
 
       <span class="toolbar-spacer"></span>
 
+      <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+      <a class="btn btn-secondary" href="/closedHistory.html">已結案歷史專案</a>
       <a class="btn btn-secondary" href="/history.html">查看歷史紀錄</a>
-      <a class="btn btn-secondary" href="/logout">切換帳號</a>
+      <!--<a class="btn btn-secondary" href="/logout">切換帳號</a>-->
       <a class="btn btn-secondary" href="/logout">登出</a>
     </div>
 
-    <!-- 內容卡片：錯誤訊息 + 表格 -->
     <div class="card">
       <div id="error" class="error-text"></div>
+
+      <!-- ✅ 狀態 Tab（取代下拉） -->
+      <div class="table-tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin: 6px 0 10px;">
+        <button class="btn btn-secondary" type="button" data-st="all">全部</button>
+        <button class="btn btn-secondary" type="button" data-st="pending">待選標</button>
+        <button class="btn btn-secondary" type="button" data-st="accepted">進行中</button>
+        <button class="btn btn-secondary" type="button" data-st="uploaded">待驗收</button>
+        <button class="btn btn-secondary" type="button" data-st="rejected">退件</button>
+        <button class="btn btn-secondary" type="button" data-st="closed">已結案</button>
+      </div>
+
+      <!-- ✅ 只保留排序下拉 -->
+      <div class="table-toolbar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin: 12px 0 14px;">
+        <label class="text-muted">排序：</label>
+        <select id="sortDueSelect" class="btn btn-secondary">
+          <option value="due_desc">時間：新 → 舊</option>
+          <option value="due_asc">時間：舊 → 新</option>
+        </select>
+      </div>
 
       <div class="table-wrapper">
         <table id="jobsTable" class="table">
@@ -61,34 +79,43 @@
         window.location.href = "/loginForm.html";
         return null;
       }
-      if (resp.status === 403) {
-        throw new Error("權限不足");
-      }
+      if (resp.status === 403) throw new Error("權限不足");
       const ct = resp.headers.get("content-type") || "";
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
 
     const escapeHTML = s =>
-      s == null
-        ? ""
-        : String(s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+      s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     const currency = new Intl.NumberFormat("zh-Hant-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
+      style: "currency", currency: "TWD", maximumFractionDigits: 0,
     });
-    const fmtMoney = n =>
-      n == null ? '<span class="text-muted">—</span>' : currency.format(Number(n));
+    const fmtMoney = n => (n == null ? '<span class="text-muted">—</span>' : currency.format(Number(n)));
 
     async function loadMe() {
       const me = await fetchJSON("/me");
       if (!me) return;
-      document.getElementById("who").textContent =
-        `登入中：${me.role} ${me.username}`;
+      document.getElementById("who").textContent = `登入中：${me.role} ${me.username}`;
+    }
+
+    const sortSel = document.getElementById("sortDueSelect");
+
+    // ✅ Tab 目前選到哪個狀態
+    let currentStatus = "all";
+
+    function getSortTime(j) {
+      // 依序：due_date → updated_at → created_at → 0
+      const pick = (v) => {
+        if (!v) return null;
+        const t = Date.parse(v);
+        return Number.isNaN(t) ? null : t;
+      };
+      return (
+        pick(j?.due_date) ??
+        pick(j?.updated_at) ??
+        pick(j?.created_at) ??
+        0
+      );
     }
 
     async function loadJobs() {
@@ -98,33 +125,44 @@
       const tbody = document.querySelector("#jobsTable tbody");
       tbody.innerHTML = "";
 
-      if (!data.items || data.items.length === 0) {
+      let items = data.items || [];
+
+      // ✅ 狀態篩選（Tab）
+      if (currentStatus !== "all") {
+        items = items.filter(j => (j.status || "") === currentStatus);
+      }
+
+      // ✅ 空資料訊息：真的沒案件 vs Tab 篩選後沒有
+      if (items.length === 0) {
         const tr = document.createElement("tr");
-        tr.innerHTML =
-          `<td colspan="7" class="text-muted">您尚未報價或承接任何案件</td>`;
+        const msg = (currentStatus === "all")
+          ? "您尚未報價或承接任何案件"
+          : `沒有符合「${currentStatus}」狀態的案件`;
+        tr.innerHTML = `<td colspan="7" class="text-muted">${msg}</td>`;
         tbody.appendChild(tr);
         return;
       }
 
-      for (const j of data.items) {
+      // ✅ 排序（就算沒 due_date 也會用 updated_at/created_at）
+      const sortMode = sortSel ? sortSel.value : "due_desc";
+      items.sort((a, b) => {
+        const ad = getSortTime(a);
+        const bd = getSortTime(b);
+        return (sortMode === "due_asc") ? (ad - bd) : (bd - ad);
+      });
+
+      for (const j of items) {
         let myStatus = "";
         if (j.status === "pending") {
           myStatus = '<span class="text-muted">待選標</span>';
         } else if (j.am_i_winner) {
           if (j.status === "rejected") {
-            myStatus =
-              '<span class="badge badge-yellow">被退件（點詳情重傳）</span>';
+            myStatus = '<span class="badge badge-yellow">被退件（點詳情重傳）</span>';
           } else {
-            myStatus =
-              `<span class="badge badge-green">得標（狀態：${escapeHTML(
-                j.status
-              )}）</span>`;
+            myStatus = `<span class="badge badge-green">得標（狀態：${escapeHTML(j.status)}）</span>`;
           }
         } else {
-          myStatus =
-            `<span class="text-muted">未得標（狀態：${escapeHTML(
-              j.status
-            )}）</span>`;
+          myStatus = `<span class="text-muted">未得標（狀態：${escapeHTML(j.status)}）</span>`;
         }
 
         const tr = document.createElement("tr");
@@ -145,10 +183,29 @@
       }
     }
 
+    // ✅ Tab：點了就切 currentStatus + 重刷 + 視覺高亮
+    document.querySelectorAll("[data-st]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentStatus = btn.getAttribute("data-st") || "all";
+        loadJobs();
+
+        document.querySelectorAll("[data-st]").forEach(b => {
+          b.classList.remove("btn-primary");
+          b.classList.add("btn-secondary");
+        });
+        btn.classList.add("btn-primary");
+        btn.classList.remove("btn-secondary");
+      });
+    });
+
+    if (sortSel) sortSel.addEventListener("change", loadJobs);
+
     (async () => {
       try {
         await loadMe();
-        await loadJobs();
+        const firstTab = document.querySelector('[data-st="all"]');
+        if (firstTab) firstTab.click();
+        else await loadJobs();
       } catch (e) {
         document.getElementById("error").textContent = "載入失敗：" + e;
       }

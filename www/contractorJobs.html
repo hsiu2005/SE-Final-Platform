@@ -8,7 +8,6 @@
 </head>
 <body class="page">
   <div class="page-inner">
-    <!-- 頁首：標題 + 登入身分 -->
     <header class="page-header">
       <div>
         <h1 class="page-title">承包人：可報價案件</h1>
@@ -19,25 +18,40 @@
       <span id="who" class="who-tag"></span>
     </header>
 
-    <!-- 工具列 -->
     <div class="toolbar">
       <a class="btn btn-secondary" href="/contractorMyInvitations.html">我的邀請</a>
       <a class="btn btn-primary" href="/contractorMyJobs.html">我的報價 / 案件</a>
 
       <span class="toolbar-spacer"></span>
 
+      <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+      <a class="btn btn-secondary" href="/closedHistory.html">已結案歷史專案</a>
       <a class="btn btn-secondary" href="/history.html">查看歷史紀錄</a>
-      <a class="btn btn-secondary" href="/logout">切換帳號</a>
+      <!--<a class="btn btn-secondary" href="/logout">切換帳號</a>-->
       <a class="btn btn-secondary" href="/logout">登出</a>
     </div>
 
-    <!-- 內容卡片 -->
     <div class="card">
       <p class="page-subtitle" style="margin-top:0;">
         這裡是目前所有「公開」的案件，您先前「婉拒」的邀請案件也會出現在這裡。
       </p>
 
       <div id="error" class="error-text"></div>
+
+      <!-- ✅ 這頁用「我的報價」Tabs 最有用 -->
+      <div class="table-tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin: 6px 0 10px;">
+        <button class="btn btn-secondary" type="button" data-bid="all">全部</button>
+        <button class="btn btn-secondary" type="button" data-bid="has">已報價</button>
+        <button class="btn btn-secondary" type="button" data-bid="none">未報價</button>
+      </div>
+
+      <div class="table-toolbar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin: 12px 0 14px;">
+        <label class="text-muted">排序：</label>
+        <select id="sortDueSelect" class="btn btn-secondary">
+          <option value="due_desc">截止日：新 → 舊</option>
+          <option value="due_asc">截止日：舊 → 新</option>
+        </select>
+      </div>
 
       <div class="table-wrapper">
         <table id="jobsTable" class="table">
@@ -64,35 +78,43 @@
         window.location.href = "/loginForm.html";
         return null;
       }
-      if (resp.status === 403) {
-        throw new Error("權限不足");
-      }
+      if (resp.status === 403) throw new Error("權限不足");
       const ct = resp.headers.get("content-type") || "";
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
 
     const escapeHTML = s =>
-      s == null
-        ? ""
-        : String(s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+      s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     const currency = new Intl.NumberFormat("zh-Hant-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
+      style: "currency", currency: "TWD", maximumFractionDigits: 0,
     });
-    const fmtMoney = n =>
-      n == null ? '<span class="text-muted">—</span>' : currency.format(Number(n));
+    const fmtMoney = n => (n == null ? '<span class="text-muted">—</span>' : currency.format(Number(n)));
 
     async function loadMe() {
       const me = await fetchJSON("/me");
       if (!me) return;
-      document.getElementById("who").textContent =
-        `登入中：${me.role} ${me.username}`;
+      document.getElementById("who").textContent = `登入中：${me.role} ${me.username}`;
     }
+
+    const sortSel = document.getElementById("sortDueSelect");
+    let bidFilter = "all"; // all | has | none
+
+    document.querySelectorAll("[data-bid]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        bidFilter = btn.getAttribute("data-bid") || "all";
+        loadJobs();
+
+        document.querySelectorAll("[data-bid]").forEach(b => {
+          b.classList.remove("btn-primary");
+          b.classList.add("btn-secondary");
+        });
+        btn.classList.remove("btn-secondary");
+        btn.classList.add("btn-primary");
+      });
+    });
+
+    if (sortSel) sortSel.addEventListener("change", loadJobs);
 
     async function loadJobs() {
       const data = await fetchJSON("/contractor/jobs");
@@ -101,36 +123,73 @@
       const tbody = document.querySelector("#jobsTable tbody");
       tbody.innerHTML = "";
 
-      if (!data.items || data.items.length === 0) {
+      let items = data.items || [];
+
+      // ✅ 依是否已報價篩選（看 my_bid_price）
+      if (bidFilter === "has") {
+        items = items.filter(j => j.my_bid_price != null);
+      } else if (bidFilter === "none") {
+        items = items.filter(j => j.my_bid_price == null);
+      }
+
+      if (items.length === 0) {
         const tr = document.createElement("tr");
-        tr.innerHTML =
-          `<td colspan="6" class="text-muted">目前沒有可報價的案件</td>`;
+        const msg = (bidFilter === "all")
+          ? "目前沒有可報價的案件"
+          : `目前沒有「${bidFilter === "has" ? "已報價" : "未報價"}」的可報價案件`;
+        tr.innerHTML = `<td colspan="6" class="text-muted" style="text-align:center;">${msg}</td>`;
         tbody.appendChild(tr);
         return;
       }
 
-      for (const j of data.items) {
+      // ✅ 截止日排序（需要後端回 due_date；沒有也不會壞）
+      //const sortMode = sortSel ? sortSel.value : "due_desc";
+      const sortMode = sortSel ? sortSel.value : "due_desc";
+
+      const getSortTime = (j) => {
+        // 1) 優先截止日
+        if (j.due_date) return new Date(j.due_date).getTime();
+
+        // 2) 沒有截止日：用更新時間（案件狀態變動也會更新）
+        if (j.updated_at) return new Date(j.updated_at).getTime();
+
+        // 3) 再沒有：用建立時間
+        if (j.created_at) return new Date(j.created_at).getTime();
+
+        // 4) 都沒有就放最後
+        return 0;
+      };
+
+      items.sort((a, b) => {
+        const ad = getSortTime(a);
+        const bd = getSortTime(b);
+        return (sortMode === "due_asc") ? (ad - bd) : (bd - ad);
+      });
+
+
+      for (const j of items) {
         const tr = document.createElement("tr");
 
         let actionBtn = "";
         let myBid = fmtMoney(j.my_bid_price);
+
         if (j.my_bid_price != null) {
           actionBtn =
-            `<a class="btn btn-secondary btn-sm" href="/bidForm.html?job_id=${j.id}&title=${encodeURIComponent(
-              j.title
-            )}&price=${j.my_bid_price}">更新報價</a>`;
+            `<a class="btn btn-secondary btn-sm" href="/bidForm.html?job_id=${j.id}&title=${encodeURIComponent(j.title)}&price=${j.my_bid_price}">
+              更新報價
+            </a>`;
         } else {
           actionBtn =
-            `<a class="btn btn-primary btn-sm" href="/bidForm.html?job_id=${j.id}&title=${encodeURIComponent(
-              j.title
-            )}">我要出價</a>`;
+            `<a class="btn btn-primary btn-sm" href="/bidForm.html?job_id=${j.id}&title=${encodeURIComponent(j.title)}">
+              我要出價
+            </a>`;
         }
 
         tr.innerHTML = `
           <td>${j.id}</td>
           <td><a href="/jobDetail.html?job_id=${j.id}">${escapeHTML(j.title)}</a></td>
           <td>${escapeHTML(j.client_name)}</td>
-          <td>${j.bid_count}</td>
+          <td>${j.bid_count ?? 0}</td>
           <td>${myBid}</td>
           <td>${actionBtn}</td>
         `;
@@ -141,7 +200,9 @@
     (async () => {
       try {
         await loadMe();
-        await loadJobs();
+        const firstTab = document.querySelector('[data-bid="all"]');
+        if (firstTab) firstTab.click();
+        else await loadJobs();
       } catch (e) {
         document.getElementById("error").textContent = "載入失敗：" + e;
       }

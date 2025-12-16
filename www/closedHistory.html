@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>已結案歷史專案</title>
+  <style>
+    :root { --border:#e5e7eb; --muted:#6b7280; --head:#f3f4f6; }
+    body{
+      font-family: system-ui, -apple-system, "Microsoft JhengHei", Arial, sans-serif;
+      padding: 16px; max-width: 900px; margin:auto; background-color:#fff7e5;
+    }
+    h1 { margin: 0 0 12px; }
+    .toolbar{
+      margin: 8px 0 16px;
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .btn{
+      display:inline-block; padding:6px 10px;
+      border:1px solid #aaa; border-radius:6px;
+      text-decoration:none; color:#222; background:#fff;
+      cursor:pointer; font-size:14px;
+    }
+    .btn:hover{ background:#f5f5f5; }
+    .muted{ color:var(--muted); }
+    #error{ color:#b30000; margin:8px 0; font-weight:bold; }
+    table{ border-collapse:collapse; width:100%; }
+    th, td{ border:1px solid var(--border); padding:10px 8px; vertical-align:top; }
+    th{ background:var(--head); text-align:left; }
+    tr:hover{ background:#fafafa; }
+
+    .badge{
+      display:inline-flex; align-items:center;
+      padding:3px 10px; border-radius:999px;
+      font-size:12px; font-weight:500; line-height:1.2;
+      background:#d4edda; border:1px solid #c3e6cb; color:#155724;
+      min-width:72px; justify-content:center;
+    }
+    .panel{
+      background:#f9f9f9;
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:16px;
+      margin-top:16px;
+    }
+  </style>
+</head>
+<body>
+  <span id="who" class="muted"></span>
+  <h1>已結案歷史專案</h1>
+
+  <div class="toolbar">
+    <a class="btn" href="/">← 回我的案件列表</a>
+    <a class="btn" href="/logout">登出</a>
+  </div>
+
+  <div id="error"></div>
+
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+      <div class="muted">
+        只顯示狀態為 <span class="badge">closed</span> 的案件
+      </div>
+      <button class="btn" id="reloadBtn" type="button">重新整理</button>
+    </div>
+
+    <div style="margin-top:12px; overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px;">案件 ID</th>
+            <th>標題</th>
+            <th style="width:140px;">狀態</th>
+            <th style="width:160px;">時間</th>
+            <th style="width:120px;">動作</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="muted" style="display:none; margin-top:12px;">
+      （目前沒有已結案的歷史專案）
+    </div>
+  </div>
+
+  <script>
+    const whoEl = document.getElementById("who");
+    const errorEl = document.getElementById("error");
+    const rowsEl = document.getElementById("rows");
+    const emptyEl = document.getElementById("empty");
+    const reloadBtn = document.getElementById("reloadBtn");
+
+    const escapeHTML = s => s==null ? "" : String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const fmtDateTime = s => s ? new Date(s).toLocaleString("zh-Hant-TW") : "—";
+
+    async function fetchJSON(url, options={}) {
+      const resp = await fetch(url, { credentials: "include", ...options });
+      if (resp.status === 401) { window.location.href="/loginForm.html"; return null; }
+      if (resp.redirected) { window.location.href = resp.url; return null; }
+      if (!resp.ok) {
+        const t = await resp.text().catch(()=> "");
+        errorEl.textContent = `API 錯誤 ${resp.status}: ${t}`;
+        return null;
+      }
+      return await resp.json();
+    }
+
+    function pickItems(payload) {
+      // 盡量相容你不同 API 的回傳格式
+      return payload?.data?.items ?? payload?.items ?? payload ?? [];
+    }
+
+    async function loadClosedHistory() {
+      errorEl.textContent = "";
+      rowsEl.innerHTML = "";
+      emptyEl.style.display = "none";
+
+      const me = await fetchJSON("/me");
+      if (!me) return;
+
+      whoEl.textContent = `登入中：${me.role} ${me.username}`;
+
+      // 依角色選 API
+      let listUrl = "";
+      if (me.role === "client") listUrl = "/client/jobs";
+      else if (me.role === "contractor") listUrl = "/contractor/my-jobs";
+      else {
+        errorEl.textContent = "此頁僅提供給委託人/承包人使用。";
+        return;
+      }
+
+      const data = await fetchJSON(listUrl);
+      if (!data) return;
+
+      let items = pickItems(data);
+
+      // 只留 closed
+      items = items.filter(j => (j.status || "") === "closed");
+
+      if (items.length === 0) {
+        emptyEl.style.display = "block";
+        return;
+      }
+
+      // 排序：最新的在上（有 updated_at 用 updated_at，沒有就用 created_at）
+      items.sort((a,b) => {
+        const at = new Date(a.updated_at || a.created_at || 0).getTime();
+        const bt = new Date(b.updated_at || b.created_at || 0).getTime();
+        return bt - at;
+      });
+
+      for (const j of items) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>#${escapeHTML(j.id)}</td>
+          <td>${escapeHTML(j.title || "")}</td>
+          <td><span class="badge">closed</span></td>
+          <td class="muted">${fmtDateTime(j.updated_at || j.created_at)}</td>
+          <td>
+            <a class="btn" href="/jobDetail.html?job_id=${encodeURIComponent(j.id)}">查看</a>
+          </td>
+        `;
+        rowsEl.appendChild(tr);
+      }
+    }
+
+    reloadBtn.addEventListener("click", loadClosedHistory);
+
+    loadClosedHistory();
+
+    // 避免 bfcache 回來資料不更新
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted) location.reload();
+    });
+  </script>
+</body>
+</html>

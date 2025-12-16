@@ -113,6 +113,28 @@
       justify-content: center;
       text-align: center;
     }
+
+    .stars {
+      position: relative;
+      display: inline-block;
+      font-size: 16px;
+      line-height: 1;
+      letter-spacing: 2px;
+    }
+    .stars::before {
+      content: "★★★★★";
+      color: #d1d5db;
+    }
+    .stars::after {
+      content: "★★★★★";
+      color: #f5c518;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: var(--pct, 0%);
+      overflow: hidden;
+    }
+
   </style>
 </head>
 <body>
@@ -247,6 +269,12 @@
     // ----------------------------
     // 小工具
     // ----------------------------
+    function starsHTML(avg) {
+      const v = Math.max(0, Math.min(5, Number(avg || 0)));
+      const pct = (v / 5) * 100;
+      return `<span class="stars" style="--pct:${pct}%;"></span>`;
+    }
+
     async function fetchJSON(url, options={}) {
       const resp = await fetch(url, options);
       if (resp.status === 401) { window.location.href="/loginForm.html"; return null; }
@@ -334,9 +362,17 @@
       });
 
       if (!resp.ok) {
-        mountEl.innerHTML = `<div class="panel-title">過往評價</div><p class="muted">（暫時無法取得評價摘要）</p>`;
+        const errText = await resp.text().catch(() => "");
+        console.log("[rating-summary] status=", resp.status, "body=", errText);
+        mountEl.innerHTML = `
+          <div class="panel-title">過往評價</div>
+          <p class="muted">（暫時無法取得評價摘要）</p>
+          <p class="muted">HTTP ${resp.status}</p>
+          <pre style="white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #e5e7eb;padding:8px;border-radius:8px;">${escapeHTML(errText)}</pre>
+        `;
         return;
       }
+
 
       const json = await resp.json();
       if (!json.success) {
@@ -345,14 +381,21 @@
       }
 
       const d = json.data || {};
-      const comments = (d.recent_comments || []).slice(0, 3);
+      const allComments = (d.recent_comments || []);
+      const comments = allComments.slice(0, 3);
 
-      // ✅ 這行是關鍵：依被評角色拿維度名稱
       const labels = RATING_DIM_LABELS_BY_TARGET[asTargetRole] || ["維度1","維度2","維度3"];
 
       mountEl.innerHTML = `
         <div class="panel-title">過往評價（${asTargetRole === "client" ? "委託人" : "承包人"}）</div>
-        <div>平均總分：<b>${Number(d.avg_overall || 0).toFixed(1)}</b>（共 ${d.count || 0} 筆）</div>
+
+        <div>
+          平均總分：
+          ${starsHTML(d.avg_overall)}
+          <b style="margin-left:6px;">${Number(d.avg_overall || 0).toFixed(1)}</b>
+          <span class="muted">（共 ${d.count || 0} 筆）</span>
+        </div>
+
         <div class="muted" style="margin-top:6px;">
           ${labels[0]}：${Number(d.avg_dim1 || 0).toFixed(1)}　
           ${labels[1]}：${Number(d.avg_dim2 || 0).toFixed(1)}　
@@ -365,14 +408,54 @@
             ? `<div class="muted">（沒有留言）</div>`
             : comments.map(c => `
                 <div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;background:#fff;">
-                  ${escapeHTML(c.comment || "")}
-                  <div class="muted"><small>${c.created_at ? fmtDateTime(c.created_at) : ""}</small></div>
+                  <div style="display:flex;justify-content:space-between;gap:10px;">
+                    <b>${escapeHTML(c.from_name || "匿名")}</b>
+                    <small class="muted">${c.created_at ? fmtDateTime(c.created_at) : ""}</small>
+                  </div>
+                  <div style="margin-top:6px;">${escapeHTML(c.comment || "")}</div>
                 </div>
               `).join("")
           }
         </div>
+
+        <div style="margin-top:10px;">
+          <button class="btn" type="button" id="openAllCommentsBtn">
+            查看全部留言（最多 10 筆）
+          </button>
+        </div>
       `;
+
+      // ✅ 綁定「查看全部留言」按鈕事件（先用 alert 驗證資料）
+      const btn = mountEl.querySelector("#openAllCommentsBtn");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          if (!allComments || allComments.length === 0) {
+            alert("沒有留言");
+            return;
+          }
+
+          // 如果你已經做了 openRatingModal()，就用 modal
+          if (typeof openRatingModal === "function") {
+            openRatingModal(
+              `全部留言（${asTargetRole === "client" ? "委託人" : "承包人"}）`,
+              allComments
+            );
+            return;
+          }
+
+          // 否則先用 alert 顯示（讓你先確認 from_name 有回來）
+          const text = allComments.map((c, i) => {
+            const name = c.from_name || "匿名";
+            const time = c.created_at ? fmtDateTime(c.created_at) : "";
+            const msg = c.comment || "";
+            return `#${i+1} ${name} ${time}\n${msg}`;
+          }).join("\n\n----------------\n\n");
+
+          alert(text);
+        });
+      }
     }
+
 
 
 
@@ -464,7 +547,10 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
             tr.innerHTML = `
               <td>
                 <div><b>${escapeHTML(b.contractor_name)}</b></div>
-                <button class="btn" type="button" data-show-rating="${b.contractor_id}">查看評價</button>
+                <button class="btn" type="button" data-show-rating="${b.contractor_id}" data-open="0">
+                  ★ 查看評價
+                </button>
+
                 <div id="rating-box-${b.contractor_id}" style="margin-top:8px; display:none;"></div>
               </td>
               <td>${fmtMoney(b.price)}</td>
@@ -487,9 +573,18 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
               const box = document.getElementById(`rating-box-${uid}`);
               if (!box) return;
 
-              // 已載入過：切換顯示/隱藏
+              // 已載入過：切換顯示/隱藏 + 按鈕文字切換
               if (box.dataset.loaded === "1") {
-                box.style.display = (box.style.display === "none") ? "block" : "none";
+                const isOpen = btn.dataset.open === "1";
+                if (isOpen) {
+                  box.style.display = "none";
+                  btn.dataset.open = "0";
+                  btn.innerHTML = "★ 查看評價";
+                } else {
+                  box.style.display = "block";
+                  btn.dataset.open = "1";
+                  btn.innerHTML = "★ 收合評價";
+                }
                 return;
               }
 
@@ -497,6 +592,8 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
               box.style.display = "block";
               box.innerHTML = `<p class="muted">載入中...</p>`;
               await renderUserRatingSummary(uid, "contractor", box);
+              btn.dataset.open = "1";
+              btn.innerHTML = "★ 收合評價";
             });
           });
 
@@ -755,6 +852,61 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
 
       issuePanel.innerHTML = html;
     }
+    // ✅ 已評價就鎖表單 + 顯示提醒（避免使用者一直想送）
+    async function lockRatingFormIfRated(jobId) {
+      // 先確認有評價表單
+      const form = document.querySelector("#rating-panel form");
+      if (!form) return;
+
+      // 先抓我自己是誰
+      const meResp = await fetch("/me", { credentials: "include" });
+      if (!meResp.ok) return;
+      const me = await meResp.json();
+      const myId = me.user_id;
+
+      // 再抓此案件所有評價
+      const resp = await fetch(`/job/${jobId}/ratings`, { credentials: "include" });
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      const ratings = payload?.data?.ratings ?? payload?.ratings ?? payload ?? [];
+
+      // 判斷「我這次要評的是哪個方向」
+      const action = form.getAttribute("action") || "";
+      const myTargetRole = action.includes("rate-client") ? "client" : "contractor";
+
+      const alreadyRated = ratings.some(r =>
+        Number(r.rater_id) === Number(myId) &&
+        r.target_role === myTargetRole
+      );
+
+      if (!alreadyRated) return;
+
+      // ✅ 鎖住整個表單
+      form.querySelectorAll("input, textarea, button").forEach(el => {
+        el.disabled = true;
+      });
+
+      // ✅ 顯示提示（用你現成的 status-alert-panel）
+      const box = document.getElementById("status-alert-panel");
+      if (box) {
+        box.innerHTML = `
+          <div class="status-alert alert-info">
+            <b>已完成評價</b><br>
+            你已經送出過評價，評價送出後不可修改。
+          </div>
+        `;
+        box.style.display = "block";
+      }
+
+      // ✅ 也可以在評價區塊再補一行小字（更直覺）
+      const ratingResult = document.getElementById("rating-result");
+      if (ratingResult) {
+        ratingResult.insertAdjacentHTML("afterbegin",
+          `<p class="muted">（你已送出過評價，表單已鎖定）</p>`
+        );
+      }
+    }
+
 
     // ----------------------------
     // Rating Panel（只在 closed）
@@ -790,6 +942,9 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
         <div class="panel-title">合作評價</div>
         <p class="muted">${title}</p>
 
+        <!-- ✅ 評價期限提示（新增） -->
+        <div id="rating-deadline-hint" class="muted" style="margin:6px 0 10px;"></div>
+
         <form method="post" action="${action}">
           <input type="hidden" name="job_id" value="${job.id}">
 
@@ -811,8 +966,116 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
         <div id="rating-result" style="margin-top:12px;"></div>
       `;
 
+
+      const form = ratingPanel.querySelector("form");
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const fd = new FormData(form);
+          const actionUrl = form.getAttribute("action");
+
+          const resp = await fetch(actionUrl, {
+            method: "POST",
+            body: fd,
+            credentials: "include",
+            redirect: "follow",
+          });
+
+          // ✅ 已評價：後端回 409
+          if (resp.status === 409) {
+            const msg = await resp.json().then(x => x.detail).catch(() => "你已經送出過評價（送出後不可修改）");
+            // 用你現成的 toast 區塊顯示
+            const box = document.getElementById("status-alert-panel");
+            box.innerHTML = `<div class="status-alert alert-info"><b>提示：</b>${escapeHTML(msg)}</div>`;
+            box.style.display = "block";
+            return;
+          }
+
+          // ✅ 成功：後端可能回 redirect 到 jobDetail.html?toast=...
+          if (resp.redirected) {
+            window.location.href = resp.url;
+            return;
+          }
+
+          // ✅ 逾期或其他規則錯誤：後端通常回 400 且是 JSON {detail:"..." }
+          if (resp.status === 400) {
+            let msg = "送出失敗";
+            try {
+              const j = await resp.json();
+              msg = j.detail || msg;
+            } catch {
+              msg = await resp.text().catch(()=> msg);
+            }
+
+            const box = document.getElementById("status-alert-panel");
+            box.innerHTML = `<div class="status-alert alert-danger"><b>送出失敗：</b>${escapeHTML(msg)}</div>`;
+            box.style.display = "block";
+
+            // 如果是逾期，順便把表單鎖起來
+            if (String(msg).includes("超過評價期限")) {
+              form.querySelectorAll("input, textarea, button").forEach(el => el.disabled = true);
+              const hintEl = document.getElementById("rating-deadline-hint");
+              if (hintEl && !hintEl.textContent.includes("已逾期")) {
+                hintEl.textContent = (hintEl.textContent ? hintEl.textContent + "｜已逾期" : "評價期限：已逾期");
+              }
+            }
+            return;
+          }
+
+          // 其他錯誤
+          if (!resp.ok) {
+            const t = await resp.text().catch(()=> "");
+            const box = document.getElementById("status-alert-panel");
+            box.innerHTML = `<div class="status-alert alert-danger"><b>送出失敗：</b>HTTP ${resp.status}<br>${escapeHTML(t)}</div>`;
+            box.style.display = "block";
+            return;
+          }
+
+          // 如果後端沒 redirect，也刷新一下
+          window.location.reload();
+        });
+      }
+
+
       ratingPanel.style.display = "block";
     }
+
+    async function loadRatingDeadlineHint(jobId) {
+      const hintEl = document.getElementById("rating-deadline-hint");
+      const form = document.querySelector("#rating-panel form");
+      if (!hintEl || !form) return;
+
+      try {
+        const resp = await fetch(`/job/${jobId}/rating-window`, { credentials: "include" });
+        if (!resp.ok) {
+          hintEl.textContent = "評價期限：無法取得";
+          return;
+        }
+
+        const w = await resp.json();
+
+        // 後端若找不到結案事件，這裡會是 null
+        if (!w.deadline_at) {
+          hintEl.textContent = "評價期限：未提供（找不到結案時間紀錄）";
+          return;
+        }
+
+        const deadline = new Date(w.deadline_at);
+        const baseText = `評價期限至：${deadline.toLocaleString("zh-Hant-TW")}（結案後 ${w.deadline_days} 天）`;
+
+        if (w.expired) {
+          hintEl.textContent = baseText + "｜已逾期";
+          // ✅ 鎖住整個表單（避免還能填）
+          form.querySelectorAll("input, textarea, button").forEach(el => el.disabled = true);
+        } else {
+          hintEl.textContent = baseText;
+        }
+      } catch (e) {
+        hintEl.textContent = "評價期限：載入失敗";
+      }
+    }
+
 
     async function loadRatingsPanel(jobId) {
       const box = document.getElementById("rating-result");
@@ -851,7 +1114,11 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
 
           html += `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-top:8px;background:#fff;">
-              <div><b>評價方向：</b>${escapeHTML(r.target_role)}（target_id: ${escapeHTML(r.target_id)}）</div>
+              <div>
+                <b>評價者：</b>${escapeHTML(r.rater_name || ("User#" + r.rater_id))}
+                <span class="muted">（評價方向：${escapeHTML(r.target_role)}）</span>
+              </div>
+
               <div class="muted" style="margin-top:6px;">
                 ${labels[0]}：<b>${escapeHTML(r.dim1)}</b>　
                 ${labels[1]}：<b>${escapeHTML(r.dim2)}</b>　
@@ -952,11 +1219,49 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
 
   if (job.status === "closed") {
     renderRatingPanel(job, extensionRole);
+    await loadRatingDeadlineHint(job.id);
     await loadRatingsPanel(job.id);
+    await lockRatingFormIfRated(job.id);
   } else {
     ratingPanel.style.display = "none";
   }
 }
+
+
+function openRatingModal(title, comments) {
+  const modal = document.getElementById("ratingModal");
+  const titleEl = document.getElementById("ratingModalTitle");
+  const bodyEl = document.getElementById("ratingModalBody");
+
+  titleEl.textContent = title;
+
+  if (!comments || comments.length === 0) {
+    bodyEl.innerHTML = `<p class="muted">（沒有留言）</p>`;
+  } else {
+    bodyEl.innerHTML = comments.map(c => `
+      <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:10px;background:#fff;">
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <b>${escapeHTML(c.from_name || "匿名")}</b>
+          <small class="muted">${c.created_at ? fmtDateTime(c.created_at) : ""}</small>
+        </div>
+        <div style="margin-top:6px; white-space:pre-wrap; word-break:break-word;">
+          ${escapeHTML(c.comment || "")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  modal.style.display = "block";
+}
+
+function closeRatingModal() {
+  document.getElementById("ratingModal").style.display = "none";
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.id === "ratingModalClose") closeRatingModal();
+  if (e.target && e.target.id === "ratingModal") closeRatingModal();
+});
 
 
     // ----------------------------
@@ -968,6 +1273,18 @@ const isContractorLike = (roleRaw === "contractor" || roleRaw === "visitor_contr
     window.addEventListener('pageshow', function (e) {
       if (e.persisted) location.reload();
     });
+
+
   </script>
+  <div id="ratingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999;">
+    <div style="max-width:700px; margin:8vh auto; background:#fff; border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div id="ratingModalTitle" style="font-weight:700; font-size:18px;"></div>
+        <button class="btn" type="button" id="ratingModalClose">關閉</button>
+      </div>
+      <div id="ratingModalBody" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
 </body>
 </html>

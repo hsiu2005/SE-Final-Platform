@@ -31,7 +31,7 @@ async def client_jobs(user=Depends(require_role("client")), conn=Depends(getDB))
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT j.id, j.title, j.status, j.created_at,
+            SELECT j.id, j.title, j.status, j.created_at, j.due_date,
                    COALESCE((SELECT COUNT(*) FROM bids b WHERE b.job_id = j.id), 0) AS bid_count,
                    u_con.username AS contractor_name
             FROM jobs j

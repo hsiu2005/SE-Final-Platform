@@ -7,4 +7,11 @@ __pycache__/
 ~$*.pptx
 *.docx
 uploads/
+.venv/
+.env
+*.pem
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
 
