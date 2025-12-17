@@ -3,84 +3,83 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>已結案歷史專案</title>
+  <title>已結案歷史專案 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
   <style>
-    :root { --border:#e5e7eb; --muted:#6b7280; --head:#f3f4f6; }
-    body{
-      font-family: system-ui, -apple-system, "Microsoft JhengHei", Arial, sans-serif;
-      padding: 16px; max-width: 900px; margin:auto; background-color:#fff7e5;
+    /* 頁面專屬排版微調 */
+    .btn { white-space: nowrap; }
+    
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    h1 { margin: 0 0 12px; }
-    .toolbar{
-      margin: 8px 0 16px;
-      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-    }
-    .btn{
-      display:inline-block; padding:6px 10px;
-      border:1px solid #aaa; border-radius:6px;
-      text-decoration:none; color:#222; background:#fff;
-      cursor:pointer; font-size:14px;
-    }
-    .btn:hover{ background:#f5f5f5; }
-    .muted{ color:var(--muted); }
-    #error{ color:#b30000; margin:8px 0; font-weight:bold; }
-    table{ border-collapse:collapse; width:100%; }
-    th, td{ border:1px solid var(--border); padding:10px 8px; vertical-align:top; }
-    th{ background:var(--head); text-align:left; }
-    tr:hover{ background:#fafafa; }
-
-    .badge{
-      display:inline-flex; align-items:center;
-      padding:3px 10px; border-radius:999px;
-      font-size:12px; font-weight:500; line-height:1.2;
-      background:#d4edda; border:1px solid #c3e6cb; color:#155724;
-      min-width:72px; justify-content:center;
-    }
-    .panel{
-      background:#f9f9f9;
-      border:1px solid var(--border);
-      border-radius:8px;
-      padding:16px;
-      margin-top:16px;
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
     }
   </style>
 </head>
-<body>
-  <span id="who" class="muted"></span>
-  <h1>已結案歷史專案</h1>
+<body class="page">
+  <div class="page-inner" style="max-width: 1100px;">
 
-  <div class="toolbar">
-    <a class="btn" href="/">← 回我的案件列表</a>
-    <a class="btn" href="/logout">登出</a>
-  </div>
-
-  <div id="error"></div>
-
-  <div class="panel">
-    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-      <div class="muted">
-        只顯示狀態為 <span class="badge">closed</span> 的案件
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">已結案歷史專案</h1>
+        <p class="page-subtitle">
+          查看所有已經結束並歸檔的案件記錄。
+        </p>
       </div>
-      <button class="btn" id="reloadBtn" type="button">重新整理</button>
+      <div style="align-self: center;">
+         <span id="who" class="who-tag">載入中...</span>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      
+      <div class="toolbar-left" id="backLinkContainer" style="display:flex;">
+        </div>
+
+      <div class="toolbar-actions" style="display:flex; gap:8px;">
+        <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary btn-active" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary" href="/history.html">操作紀錄</a>
+        <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
     </div>
 
-    <div style="margin-top:12px; overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:90px;">案件 ID</th>
-            <th>標題</th>
-            <th style="width:140px;">狀態</th>
-            <th style="width:160px;">時間</th>
-            <th style="width:120px;">動作</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
+    <div class="card" style="width: 100%; margin-top: 10px; padding: 40px;"> 
+      <div id="error" class="error-text"></div>
 
-    <div id="empty" class="muted" style="display:none; margin-top:12px;">
-      （目前沒有已結案的歷史專案）
+      <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div class="text-muted" style="font-size: 14px;">
+           僅顯示狀態為 <span class="badge-pill st-green" style="font-size:12px;">已結案</span> 的案件
+        </div>
+        <button class="btn btn-secondary btn-sm" id="reloadBtn" type="button">↻ 重新整理</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="jobsTable" class="table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">案件 ID</th>
+              <th>案件標題</th>
+              <th style="width: 120px;">狀態</th>
+              <th style="width: 180px;">最後更新時間</th>
+              <th style="width: 100px; text-align: left;">動作</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div id="empty" class="text-muted" style="display:none; text-align:center; padding: 60px 0;">
+        目前沒有已結案的歷史專案
+      </div>
     </div>
   </div>
 
@@ -90,9 +89,9 @@
     const rowsEl = document.getElementById("rows");
     const emptyEl = document.getElementById("empty");
     const reloadBtn = document.getElementById("reloadBtn");
+    const backLinkContainer = document.getElementById("backLinkContainer");
 
-    const escapeHTML = s => s==null ? "" : String(s)
-      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const escapeHTML = s => s==null ? "" : String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const fmtDateTime = s => s ? new Date(s).toLocaleString("zh-Hant-TW") : "—";
 
     async function fetchJSON(url, options={}) {
@@ -108,7 +107,6 @@
     }
 
     function pickItems(payload) {
-      // 盡量相容你不同 API 的回傳格式
       return payload?.data?.items ?? payload?.items ?? payload ?? [];
     }
 
@@ -120,9 +118,16 @@
       const me = await fetchJSON("/me");
       if (!me) return;
 
-      whoEl.textContent = `登入中：${me.role} ${me.username}`;
+      const roleText = me.role === 'client' ? '委託人' : '承包人';
+      whoEl.textContent = `${roleText} · ${me.username}`;
 
-      // 依角色選 API
+      // 1. 動態生成「返回」按鈕
+      if (me.role === "client") {
+        backLinkContainer.innerHTML = `<a class="btn btn-secondary" href="/clientJobs.html">回我的案件</a>`;
+      } else {
+        backLinkContainer.innerHTML = `<a class="btn btn-secondary" href="/contractorMyJobs.html">回我的報價/案件</a>`;
+      }
+
       let listUrl = "";
       if (me.role === "client") listUrl = "/client/jobs";
       else if (me.role === "contractor") listUrl = "/contractor/my-jobs";
@@ -136,7 +141,7 @@
 
       let items = pickItems(data);
 
-      // 只留 closed
+      // 3. 篩選 closed
       items = items.filter(j => (j.status || "") === "closed");
 
       if (items.length === 0) {
@@ -144,7 +149,7 @@
         return;
       }
 
-      // 排序：最新的在上（有 updated_at 用 updated_at，沒有就用 created_at）
+      // 4. 排序
       items.sort((a,b) => {
         const at = new Date(a.updated_at || a.created_at || 0).getTime();
         const bt = new Date(b.updated_at || b.created_at || 0).getTime();
@@ -154,12 +159,14 @@
       for (const j of items) {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>#${escapeHTML(j.id)}</td>
-          <td>${escapeHTML(j.title || "")}</td>
-          <td><span class="badge">closed</span></td>
-          <td class="muted">${fmtDateTime(j.updated_at || j.created_at)}</td>
+          <td class="text-muted" style="font-size: 14px;">#${escapeHTML(j.id)}</td>
           <td>
-            <a class="btn" href="/jobDetail.html?job_id=${encodeURIComponent(j.id)}">查看</a>
+             <span class="job-title-text">${escapeHTML(j.title || "")}</span>
+          </td>
+          <td><span class="badge-pill st-green">已結案</span></td>
+          <td class="text-muted" style="font-size: 13px;">${fmtDateTime(j.updated_at || j.created_at)}</td>
+          <td style="text-align: right;">
+            <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${encodeURIComponent(j.id)}">查看詳情</a>
           </td>
         `;
         rowsEl.appendChild(tr);
@@ -167,10 +174,8 @@
     }
 
     reloadBtn.addEventListener("click", loadClosedHistory);
-
     loadClosedHistory();
 
-    // 避免 bfcache 回來資料不更新
     window.addEventListener("pageshow", function (e) {
       if (e.persisted) location.reload();
     });

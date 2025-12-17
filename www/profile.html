@@ -3,178 +3,254 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>個人頁面 | 工作委託平台</title>
-  <link rel="stylesheet" href="/style.css">
+  <title>個人頁面 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
   <style>
-    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    @media (max-width: 860px){ .grid-2{ grid-template-columns:1fr; } }
-    .card-title { font-weight:700; font-size:16px; margin:0 0 8px; }
-    .stat-row { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
-    .stat { padding:10px 12px; border:1px solid var(--line, #e5e7eb); border-radius:10px; background:#fff; }
-    .stat .k { font-size:12px; color: var(--sub, #6b7280); }
-    .stat .v { font-size:20px; font-weight:800; margin-top:4px; }
-    .muted { color: var(--sub, #6b7280); }
-    .stars { position: relative; display:inline-block; font-size:16px; line-height:1; letter-spacing:2px; }
-    .stars::before { content:"★★★★★"; color:#d1d5db; }
-    .stars::after  { content:"★★★★★"; color:#f5c518; position:absolute; left:0; top:0; width:var(--pct,0%); overflow:hidden; }
+    /* === 頁面專屬 CSS === */
 
-    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin: 8px 0 10px; }
-    .btn-sm { padding:6px 10px; border-radius:999px; }
-    .nowrap { white-space:nowrap; }
-    .td-wrap { white-space:pre-wrap; word-break:break-word; }
+    /* 1. 工具列排版 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbar .btn { white-space: nowrap; }
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+    }
 
-    /* modal */
-    .modal-mask{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:18px; z-index:9999; }
-    .modal{ width:min(820px, 100%); background:#fff; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 30px rgba(0,0,0,.18); overflow:hidden; }
-    .modal-hd{ padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:#f9fafb; border-bottom:1px solid #e5e7eb; }
-    .modal-bd{ padding:14px; }
-    .kv{ display:grid; grid-template-columns:140px 1fr; gap:8px 12px; }
-    @media (max-width:640px){ .kv{ grid-template-columns:1fr; } }
-    .kv .k{ color:#6b7280; font-size:12px; }
-    .kv .v{ font-weight:600; }
+    /* 2. 數據儀表板 */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .stat-item {
+      border: 1px solid #eee;
+      background-color: #fafafa;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .stat-label { font-size: 13px; color: #888; font-weight: 500; margin-bottom: 6px; }
+    .stat-value { font-size: 22px; font-weight: 700; color: #2c3e34; }
+
+    /* 3. 星星 */
+    .stars {
+      position: relative;
+      display: inline-block;
+      font-size: 16px;
+      line-height: 1;
+      letter-spacing: 2px;
+      color: #e0e0e0;
+    }
+    .stars::before { content: "★★★★★"; }
+    .stars::after {
+      content: "★★★★★";
+      color: #f5c518;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: var(--pct, 0%);
+      overflow: hidden;
+    }
+
+    /* 4. 兩欄佈局 */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    @media (max-width: 860px){ .grid-2 { grid-template-columns: 1fr; } }
+
+    /* 5. 狀態標籤 Tabs (與列表頁統一) */
+    .table-tabs {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+    }
+    /* 膠囊樣式：為了解決按鈕跳動問題 */
+    .filter-chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 36px; padding: 0 18px; font-size: 14px; font-weight: 500;
+      border-radius: 6px; border: 1px solid transparent;
+      background-color: #f4f4f5; color: #666;
+      cursor: pointer; transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .filter-chip:hover { background-color: #e4e4e7; color: #333; }
+    .filter-chip.active {
+      background-color: var(--accent-green); color: #fff;
+      box-shadow: 0 4px 12px rgba(94, 143, 120, 0.25);
+    }
+
+    /* 6. Modal 樣式 */
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: none; align-items: center; justify-content: center;
+      padding: 18px; z-index: 9999;
+    }
+    .modal {
+      width: 100%; max-width: 600px;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.2);
+      overflow: hidden; display: flex; flex-direction: column;
+      max-height: 90vh;
+    }
+    .modal-hd {
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #eee;
+      background: #fff;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; color: #333; }
+    .modal-bd { padding: 24px; overflow-y: auto; }
+    
+    .kv-row { display: flex; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
+    .kv-k { width: 100px; color: #888; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .kv-v { flex: 1; color: #333; font-size: 14px; line-height: 1.5; }
   </style>
 </head>
 
 <body class="page">
-  <div class="page-inner">
+  <div class="page-inner" style="max-width: 1100px;">
+    
     <header class="page-header">
       <div>
         <h1 class="page-title">個人頁面</h1>
-        <p class="page-subtitle">查看你的帳號資訊、評價摘要、評價明細與已結案專案。</p>
+        <p class="page-subtitle">查看您的帳號資訊、信用評價以及過往的結案紀錄。</p>
       </div>
-      <span id="who" class="who-tag"></span>
+      <div style="align-self: center;">
+         <span id="who" class="who-tag">載入中...</span>
+      </div>
     </header>
 
     <div class="toolbar">
-      <a class="btn btn-secondary" href="/">← 回我的案件列表</a>
-      <a class="btn btn-secondary" href="/history.html">歷史紀錄</a>
-      <a class="btn btn-secondary" href="/closedHistory.html">已結案歷史專案</a>
-      <span class="toolbar-spacer"></span>
-      <a class="btn btn-secondary" href="/logout">登出</a>
+      <div class="toolbar-left" id="backLinkContainer"></div>
+      <div class="toolbar-actions" style="display:flex; gap:8px;">
+        <a class="btn btn-secondary btn-active" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary" href="/history.html">操作紀錄</a>
+        <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
     </div>
 
     <div id="error" class="error-text"></div>
 
-    <!-- 基本資訊 -->
-    <div class="card">
-      <div class="card-title">帳號資訊</div>
+    <div class="card" style="padding: 30px; margin-top: 10px;">
+      <h2 style="font-size:18px; font-weight:700; margin:0 0 16px; border-bottom:1px solid #eee; padding-bottom:10px;">帳號資訊</h2>
+      
       <div class="stat-row">
-        <div class="stat">
-          <div class="k">帳號</div>
-          <div class="v" id="me-name">—</div>
+        <div class="stat-item">
+          <div class="stat-label">使用者帳號</div>
+          <div class="stat-value" id="me-name">—</div>
         </div>
-        <div class="stat">
-          <div class="k">角色</div>
-          <div class="v" id="me-role">—</div>
+        <div class="stat-item">
+          <div class="stat-label">目前角色</div>
+          <div class="stat-value" id="me-role">—</div>
         </div>
-        <div class="stat">
-          <div class="k">已結案數</div>
-          <div class="v" id="closed-count">0</div>
+        <div class="stat-item">
+          <div class="stat-label">已結案數量</div>
+          <div class="stat-value" style="color: var(--accent-green);" id="closed-count">0</div>
         </div>
       </div>
-      <div class="muted" style="margin-top:10px;">
-        ※ 已結案數：依你目前登入角色，統計你「作為委託人 / 作為承包人」的已結案案件。
+      
+      <div class="text-muted" style="margin-top:16px; font-size:13px;">
+        ※ 結案數統計：包含您作為委託人與承包人身分的所有已完成案件。
       </div>
     </div>
 
-    <!-- 評價摘要（只顯示符合登入角色的那張） -->
-    <div class="grid-2" style="margin-top:12px;">
-      <div class="card" id="summary-client" data-only-role="client">
-        <div class="card-title">委託人受評摘要</div>
-        <div class="muted">載入中…</div>
+    <div class="grid-2">
+      <div class="card" id="summary-client" data-only-role="client" style="padding: 30px; margin-top: 0;">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">委託人受評摘要</h3>
+        <div class="text-muted">載入中...</div>
       </div>
 
-      <div class="card" id="summary-contractor" data-only-role="contractor">
-        <div class="card-title">承包人受評摘要</div>
-        <div class="muted">載入中…</div>
+      <div class="card" id="summary-contractor" data-only-role="contractor" style="padding: 30px; margin-top: 0;">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">承包人受評摘要</h3>
+        <div class="text-muted">載入中...</div>
       </div>
     </div>
 
-    <!-- 評價明細（依角色只留兩個 Tabs） -->
-    <div class="card" style="margin-top:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+    <div class="card" style="padding: 30px; margin-top: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
         <div>
-          <div class="card-title" style="margin-bottom:2px;">評價明細</div>
-          <div class="muted">依登入角色顯示相關紀錄，可查看各筆評價完整內容。</div>
+          <h2 style="font-size:18px; font-weight:700; margin:0;">評價明細紀錄</h2>
+          <span class="text-muted" style="font-size:13px;">點擊「查看」可閱讀完整評分與留言。</span>
         </div>
-        <button class="btn btn-secondary" id="reloadBtn2" type="button">重新整理</button>
+        <button class="btn btn-secondary" id="reloadBtn2" type="button">↻ 重新整理</button>
       </div>
 
-      <div class="tabs" id="ratingTabs">
-        <!-- client 會看到 -->
-        <button class="btn btn-secondary btn-sm" type="button" data-tab="recv_client" data-only-role="client">
-          受評紀錄（委託人）
-        </button>
-        <button class="btn btn-secondary btn-sm" type="button" data-tab="give_contractor" data-only-role="client">
-          評出紀錄（承包人）
-        </button>
-
-        <!-- contractor 會看到 -->
-        <button class="btn btn-secondary btn-sm" type="button" data-tab="recv_contractor" data-only-role="contractor">
-          受評紀錄（承包人）
-        </button>
-        <button class="btn btn-secondary btn-sm" type="button" data-tab="give_client" data-only-role="contractor">
-          評出紀錄（委託人）
-        </button>
+      <div class="table-tabs" id="ratingTabs">
+        <button class="filter-chip" type="button" data-tab="recv_client" data-only-role="client">受評紀錄 (委託人)</button>
+        <button class="filter-chip" type="button" data-tab="give_contractor" data-only-role="client">評出紀錄 (給承包人)</button>
+        
+        <button class="filter-chip" type="button" data-tab="recv_contractor" data-only-role="contractor">受評紀錄 (承包人)</button>
+        <button class="filter-chip" type="button" data-tab="give_client" data-only-role="contractor">評出紀錄 (給委託人)</button>
       </div>
 
-      <div class="table-wrapper" style="margin-top:8px;">
-        <table class="table">
+      <div class="table-wrapper">
+        <table class="table rating-table">
           <thead>
             <tr>
-              <th style="width:120px;">類型</th>
-              <th>案件</th>
-              <th style="width:170px;">對象</th>
-              <th style="width:160px;">分數</th>
-              <th style="width:180px;">時間</th>
-              <th style="width:110px;">動作</th>
+              <th style="width:140px;">紀錄類型</th>
+              <th>相關案件</th>
+              <th style="width:150px;">對象</th>
+              <th style="width:140px;">總分</th>
+              <th style="width:160px;">時間</th>
+              <th style="width:100px; text-align:left;">動作</th>
             </tr>
           </thead>
           <tbody id="ratingRows"></tbody>
         </table>
       </div>
 
-      <div id="ratingEmpty" class="text-muted" style="display:none; margin-top:10px;">
-        目前沒有資料。
+      <div id="ratingEmpty" class="text-muted" style="display:none; text-align:center; padding: 40px 0;">
+        目前沒有評價資料
       </div>
     </div>
 
-    <!-- 已結案清單 -->
-    <div class="card" style="margin-top:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-        <div>
-          <div class="card-title" style="margin-bottom:2px;">已結案專案</div>
-          <div class="muted">點「查看」可進入案件詳情頁。</div>
-        </div>
-        <button class="btn btn-secondary" id="reloadBtn" type="button">重新整理</button>
+    <div class="card" style="padding: 30px; margin-top: 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h2 style="font-size:18px; font-weight:700; margin:0;">近期結案專案</h2>
+        <button class="btn btn-secondary" id="reloadBtn" type="button">↻ 重新整理</button>
       </div>
 
-      <div class="table-wrapper" style="margin-top:10px;">
+      <div class="table-wrapper">
         <table class="table">
           <thead>
             <tr>
-              <th style="width:90px;">ID</th>
-              <th>標題</th>
-              <th style="width:160px;">時間</th>
-              <th style="width:120px;">動作</th>
+              <th style="width:80px;">ID</th>
+              <th>案件標題</th>
+              <th style="width:160px;">最後更新</th>
+              <th style="width:100px; text-align:left;">動作</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
 
-      <div id="empty" class="text-muted" style="display:none; margin-top:10px;">
-        目前沒有已結案的專案。
+      <div id="empty" class="text-muted" style="display:none; text-align:center; padding: 40px 0;">
+        目前沒有已結案的專案
       </div>
     </div>
   </div>
 
-  <!-- modal -->
   <div id="mask" class="modal-mask" role="dialog" aria-modal="true">
     <div class="modal">
       <div class="modal-hd">
-        <div style="font-weight:800;" id="modalTitle">評價明細</div>
-        <button class="btn btn-secondary btn-sm" type="button" id="closeModal">關閉</button>
+        <div class="modal-title" id="modalTitle">評價明細</div>
+        <button class="btn btn-secondary btn-sm" type="button" id="closeModal">✕ 關閉</button>
       </div>
       <div class="modal-bd" id="modalBody"></div>
     </div>
@@ -183,6 +259,7 @@
   <script>
     const whoEl = document.getElementById("who");
     const errorEl = document.getElementById("error");
+    const backLinkContainer = document.getElementById("backLinkContainer");
 
     const rowsEl = document.getElementById("rows");
     const emptyEl = document.getElementById("empty");
@@ -204,12 +281,9 @@
     const modalTitleEl = document.getElementById("modalTitle");
     const modalBodyEl = document.getElementById("modalBody");
 
-    const escapeHTML = s => s==null ? "" : String(s)
-      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-
+    const escapeHTML = s => s==null ? "" : String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const fmtDateTime = s => s ? new Date(s).toLocaleString("zh-Hant-TW") : "—";
 
-    // ✅ 投影片的維度名稱：看「被評者的角色(=target_role)」
     const RATING_DIM_LABELS_BY_TARGET = {
       client: ["需求合理性", "驗收難度", "合作態度"],
       contractor: ["產出品質", "執行效率", "合作態度"]
@@ -239,16 +313,14 @@
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
 
-    // ✅ 角色裁切：只顯示 data-only-role = me.role 的元素
+    // 角色裁切
     function applyRoleUI(role){
       document.querySelectorAll("[data-only-role]").forEach(el=>{
         el.style.display = (el.getAttribute("data-only-role") === role) ? "" : "none";
       });
-
-      // 避免 grid-2 留空：如果只剩一張卡，把 grid 改 1 欄
       const grid = document.querySelector(".grid-2");
       if(grid){
-        grid.style.gridTemplateColumns = "1fr";
+        grid.style.gridTemplateColumns = "1fr"; 
       }
     }
 
@@ -257,49 +329,41 @@
 
       if (!data || (data.count || 0) === 0) {
         mountEl.innerHTML = `
-          <div class="card-title">${escapeHTML(title)}</div>
-          <div class="muted">目前沒有評價資料。</div>
+          <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">${escapeHTML(title)}</h3>
+          <div class="text-muted">目前沒有評價資料。</div>
         `;
         return;
       }
 
       mountEl.innerHTML = `
-        <div class="card-title">${escapeHTML(title)}</div>
-
-        <div>
-          平均總分：
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">${escapeHTML(title)}</h3>
+        <div style="display:flex; align-items:center; gap:10px;">
           ${starsHTML(data.avg_overall)}
-          <b style="margin-left:6px;">${Number(data.avg_overall || 0).toFixed(1)}</b>
-          <span class="muted">（共 ${data.count || 0} 筆）</span>
+          <b style="font-size:20px; color:#333;">${Number(data.avg_overall || 0).toFixed(1)}</b>
+          <span class="text-muted">（共 ${data.count || 0} 筆）</span>
         </div>
-
-        <div class="muted" style="margin-top:6px;">
+        <div class="text-muted" style="margin-top:8px; font-size:13px;">
           ${labels[0]}：${Number(data.avg_dim1 || 0).toFixed(1)}　
           ${labels[1]}：${Number(data.avg_dim2 || 0).toFixed(1)}　
           ${labels[2]}：${Number(data.avg_dim3 || 0).toFixed(1)}
         </div>
-
-        <div style="margin-top:10px;">
-          <b>近期留言：</b>
+        <div style="margin-top:16px; background:#f9f9f9; padding:12px; border-radius:8px;">
+          <div style="font-weight:600; margin-bottom:8px; font-size:14px;">近期留言：</div>
           ${
             (data.recent_comments || []).slice(0,3).length === 0
-              ? `<div class="muted">（沒有留言）</div>`
+              ? `<div class="text-muted">（沒有留言）</div>`
               : (data.recent_comments || []).slice(0,3).map(c => `
-                <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:8px;background:#fff;">
-                  <div style="display:flex;justify-content:space-between;gap:10px;">
+                <div style="border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;gap:10px; font-size:13px;">
                     <b>${escapeHTML(c.from_name || "匿名")}</b>
-                    <span class="muted" style="font-size:12px;">${c.created_at ? fmtDateTime(c.created_at) : ""}</span>
+                    <span class="text-muted">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</span>
                   </div>
-                  <div style="margin-top:6px; white-space:pre-wrap; word-break:break-word;">
+                  <div style="margin-top:4px; font-size:14px; color:#444;">
                     ${escapeHTML(c.comment || "")}
                   </div>
                 </div>
               `).join("")
           }
-        </div>
-
-        <div class="muted" style="margin-top:10px;">
-          ※ 這是你「被評為 ${targetRole === "client" ? "委託人" : "承包人"}」的評價摘要。
         </div>
       `;
     }
@@ -308,99 +372,60 @@
       return payload?.data?.items ?? payload?.items ?? payload ?? [];
     }
 
-    // ---------- modal ----------
     function openModal(title, html){
       modalTitleEl.textContent = title;
       modalBodyEl.innerHTML = html;
       mask.style.display = "flex";
     }
-    function closeModal(){
-      mask.style.display = "none";
-    }
+    function closeModal(){ mask.style.display = "none"; }
     closeModalBtn.addEventListener("click", closeModal);
     mask.addEventListener("click", (e)=>{ if(e.target === mask) closeModal(); });
 
-    // ---------- rating details ----------
-    let ratingBuckets = {
-      recv_client: [],
-      recv_contractor: [],
-      give_client: [],
-      give_contractor: []
-    };
+    let ratingBuckets = { recv_client: [], recv_contractor: [], give_client: [], give_contractor: [] };
     let currentTab = null;
 
+    // 修正：使用 filter-chip 切換邏輯
     function setActiveTab(tab){
       currentTab = tab;
+      
+      // 切換樣式
+      document.querySelectorAll("#ratingTabs button").forEach(b => b.classList.remove("active"));
+      const btn = document.querySelector(`#ratingTabs button[data-tab="${tab}"]`);
+      if(btn) btn.classList.add("active");
 
-      // 只切換「目前可見的 tab 按鈕」
-      document.querySelectorAll("#ratingTabs [data-tab]").forEach(b=>{
-        b.classList.remove("btn-primary");
-        b.classList.add("btn-secondary");
-      });
-
-      const btn = document.querySelector(`#ratingTabs [data-tab="${tab}"]`);
-      if(btn){
-        btn.classList.remove("btn-secondary");
-        btn.classList.add("btn-primary");
-      }
       renderRatingTable();
     }
 
-    document.querySelectorAll("#ratingTabs [data-tab]").forEach(btn=>{
+    document.querySelectorAll("#ratingTabs button").forEach(btn=>{
       btn.addEventListener("click", ()=> setActiveTab(btn.getAttribute("data-tab")));
     });
 
     function tabLabel(tab){
       return {
-        recv_client: "受評紀錄（委託人）",
-        recv_contractor: "受評紀錄（承包人）",
-        give_client: "評出紀錄（委託人）",
-        give_contractor: "評出紀錄（承包人）"
+        recv_client: "受評紀錄",
+        recv_contractor: "受評紀錄",
+        give_client: "評出紀錄",
+        give_contractor: "評出紀錄"
       }[tab] || tab;
     }
 
     function buildDetailHTML(r, mode){
-      const labels = RATING_DIM_LABELS_BY_TARGET[r.target_role] || ["維度1","維度2","維度3"];
+      const labels = RATING_DIM_LABELS_BY_TARGET[r.target_role] || ["D1","D2","D3"];
       const overall = calcOverall(r.dim1, r.dim2, r.dim3);
-
-      const whoOther = (mode === "recv")
-        ? escapeHTML(r.rater_name)
-        : escapeHTML(r.target_name);
-
-
+      const whoOther = (mode === "recv") ? escapeHTML(r.rater_name) : escapeHTML(r.target_name);
       const roleText = (r.target_role === "client") ? "委託人" : "承包人";
 
       return `
-        <div class="kv">
-          <div class="k">案件</div>
-          <div class="v">#${escapeHTML(r.job_id)}　${escapeHTML(r.job_title || "（無標題）")}</div>
-
-          <div class="k">對象</div>
-          <div class="v">${whoOther}</div>
-
-          <div class="k">被評角色</div>
-          <div class="v">${roleText}</div>
-
-          <div class="k">總分</div>
-          <div class="v">${starsHTML(overall)} <span style="margin-left:6px;">${overall.toFixed(1)}</span></div>
-
-          <div class="k">${labels[0]}</div>
-          <div class="v">${Number(r.dim1||0).toFixed(1)}</div>
-
-          <div class="k">${labels[1]}</div>
-          <div class="v">${Number(r.dim2||0).toFixed(1)}</div>
-
-          <div class="k">${labels[2]}</div>
-          <div class="v">${Number(r.dim3||0).toFixed(1)}</div>
-
-          <div class="k">留言</div>
-          <div class="v" style="white-space:pre-wrap; word-break:break-word;">${escapeHTML(r.comment || "（無留言）")}</div>
-
-          <div class="k">時間</div>
-          <div class="v">${fmtDateTime(r.created_at)}</div>
-        </div>
-
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="kv-row"><div class="kv-k">案件</div><div class="kv-v">#${escapeHTML(r.job_id)}　${escapeHTML(r.job_title || "")}</div></div>
+        <div class="kv-row"><div class="kv-k">對象</div><div class="kv-v">${whoOther}</div></div>
+        <div class="kv-row"><div class="kv-k">被評角色</div><div class="kv-v">${roleText}</div></div>
+        <div class="kv-row"><div class="kv-k">總分</div><div class="kv-v">${starsHTML(overall)} <b>${overall.toFixed(1)}</b></div></div>
+        <div class="kv-row"><div class="kv-k">${labels[0]}</div><div class="kv-v">${Number(r.dim1).toFixed(1)}</div></div>
+        <div class="kv-row"><div class="kv-k">${labels[1]}</div><div class="kv-v">${Number(r.dim2).toFixed(1)}</div></div>
+        <div class="kv-row"><div class="kv-k">${labels[2]}</div><div class="kv-v">${Number(r.dim3).toFixed(1)}</div></div>
+        <div class="kv-row"><div class="kv-k">留言</div><div class="kv-v">${escapeHTML(r.comment || "(無)")}</div></div>
+        <div class="kv-row"><div class="kv-k">時間</div><div class="kv-v">${fmtDateTime(r.created_at)}</div></div>
+        <div style="margin-top:20px; text-align:right;">
           <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${encodeURIComponent(r.job_id)}">查看案件詳情</a>
         </div>
       `;
@@ -411,15 +436,9 @@
       ratingRowsEl.innerHTML = "";
       ratingEmptyEl.style.display = "none";
 
-      if(!currentTab){
-        ratingEmptyEl.textContent = "目前沒有可顯示的分頁。";
+      if(!currentTab || items.length === 0){
         ratingEmptyEl.style.display = "block";
-        return;
-      }
-
-      if(items.length === 0){
-        ratingEmptyEl.textContent = `目前沒有「${tabLabel(currentTab)}」資料。`;
-        ratingEmptyEl.style.display = "block";
+        ratingEmptyEl.textContent = !currentTab ? "請選擇分類" : "目前沒有資料。";
         return;
       }
 
@@ -428,33 +447,23 @@
       for(const r of items){
         const overall = calcOverall(r.dim1, r.dim2, r.dim3);
         const otherName = isRecv ? r.rater_name : r.target_name;
-
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="nowrap">${escapeHTML(tabLabel(currentTab))}</td>
-          <td>
-            <div><b>#${escapeHTML(r.job_id)}</b> ${escapeHTML(r.job_title || "")}</div>
-          </td>
-          <td class="nowrap">${escapeHTML(otherName || "")}</td>
-          <td class="nowrap">${starsHTML(overall)} <b style="margin-left:6px;">${overall.toFixed(1)}</b></td>
-          <td class="muted nowrap">${fmtDateTime(r.created_at)}</td>
-          <td>
+          <td><span class="badge-pill st-gray" style="font-weight:normal;">${escapeHTML(tabLabel(currentTab))}</span></td>
+          <td><div style="font-weight:600;">${escapeHTML(r.job_title||"")}</div><small class="text-muted">#${r.job_id}</small></td>
+          <td>${escapeHTML(otherName || "")}</td>
+          <td>${starsHTML(overall)} <b style="margin-left:4px;">${overall.toFixed(1)}</b></td>
+          <td class="text-muted" style="font-size:13px;">${fmtDateTime(r.created_at)}</td>
+          <td style="text-align:right;">
             <button class="btn btn-secondary btn-sm" type="button">查看</button>
           </td>
         `;
-
-        tr.querySelector("button").addEventListener("click", ()=>{
-          openModal("評價明細", buildDetailHTML(r, isRecv ? "recv" : "give"));
-        });
-
+        tr.querySelector("button").addEventListener("click", ()=> openModal("評價明細", buildDetailHTML(r, isRecv?"recv":"give")));
         ratingRowsEl.appendChild(tr);
       }
     }
 
     function pickDefaultTabByRole(role){
-      // 角色專屬：只留兩個 tab
-      // client: recv_client + give_contractor
-      // contractor: recv_contractor + give_client
       if(role === "client") return "recv_client";
       if(role === "contractor") return "recv_contractor";
       return "recv_client";
@@ -465,49 +474,41 @@
       rowsEl.innerHTML = "";
       emptyEl.style.display = "none";
 
-      // 1) me
       const me = await fetchJSON("/me");
       if (!me) return;
 
       whoEl.textContent = `登入中：${me.role} ${me.username}`;
       meNameEl.textContent = me.username || "—";
-      meRoleEl.textContent = me.role || "—";
+      meRoleEl.textContent = (me.role === 'client' ? '委託人' : '承包人');
 
-      const uid = me.user_id;
-
-      // ✅ 角色裁切（摘要卡 + Tabs）
-      applyRoleUI(me.role);
-
-      // 2) summaries (只渲染「自己的角色」那張)
-      if(me.role === "client"){
-        try {
-          const s1 = await fetchJSON(`/user/${uid}/rating-summary?as_target_role=client`);
-          renderSummaryBox(summaryClientEl, "委託人受評摘要", (s1 && s1.success) ? s1.data : null, "client");
-        } catch {
-          summaryClientEl.innerHTML = `<div class="card-title">委託人受評摘要</div><div class="muted">載入失敗</div>`;
-        }
-      } else if(me.role === "contractor"){
-        try {
-          const s2 = await fetchJSON(`/user/${uid}/rating-summary?as_target_role=contractor`);
-          renderSummaryBox(summaryContractorEl, "承包人受評摘要", (s2 && s2.success) ? s2.data : null, "contractor");
-        } catch {
-          summaryContractorEl.innerHTML = `<div class="card-title">承包人受評摘要</div><div class="muted">載入失敗</div>`;
-        }
+      if (me.role === "client") {
+        backLinkContainer.innerHTML = `<a class="btn btn-secondary" href="/clientJobs.html">回我的案件</a>`;
+      } else {
+        backLinkContainer.innerHTML = `<a class="btn btn-secondary" href="/contractorMyJobs.html">回我的報價/案件</a>`;
       }
 
-      // 3) rating details (你被評 + 你評別人) -> 但 UI 只會顯示跟角色有關的兩類
+      applyRoleUI(me.role);
+
+      if(me.role === "client"){
+        try {
+          const s1 = await fetchJSON(`/user/${me.user_id}/rating-summary?as_target_role=client`);
+          renderSummaryBox(summaryClientEl, "委託人受評摘要", (s1 && s1.success) ? s1.data : null, "client");
+        } catch { summaryClientEl.innerHTML = `<div class="text-muted">載入失敗</div>`; }
+      } else if(me.role === "contractor"){
+        try {
+          const s2 = await fetchJSON(`/user/${me.user_id}/rating-summary?as_target_role=contractor`);
+          renderSummaryBox(summaryContractorEl, "承包人受評摘要", (s2 && s2.success) ? s2.data : null, "contractor");
+        } catch { summaryContractorEl.innerHTML = `<div class="text-muted">載入失敗</div>`; }
+      }
+
       const detail = await fetchJSON("/me/ratings");
       const d = detail?.data || {};
-
       ratingBuckets.recv_client = d.received_as_client || [];
       ratingBuckets.recv_contractor = d.received_as_contractor || [];
       ratingBuckets.give_client = d.given_to_client || [];
       ratingBuckets.give_contractor = d.given_to_contractor || [];
-
-      // ✅ 只選擇角色專屬預設 tab
       setActiveTab(pickDefaultTabByRole(me.role));
 
-      // 4) closed jobs list（沿用你原本的做法）
       let listUrl = "";
       if (me.role === "client") listUrl = "/client/jobs";
       else if (me.role === "contractor") listUrl = "/contractor/my-jobs";
@@ -518,7 +519,6 @@
 
       let items = pickItems(data);
       items = items.filter(j => (j.status || "") === "closed");
-
       closedCountEl.textContent = String(items.length);
 
       if (items.length === 0) {
@@ -535,10 +535,10 @@
       for (const j of items) {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>#${escapeHTML(j.id)}</td>
-          <td>${escapeHTML(j.title || "")}</td>
-          <td class="muted">${fmtDateTime(j.updated_at || j.created_at)}</td>
-          <td><a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${encodeURIComponent(j.id)}">查看</a></td>
+          <td class="text-muted" style="font-size:14px;">#${escapeHTML(j.id)}</td>
+          <td style="font-weight:600; color:#2c3e34;">${escapeHTML(j.title || "")}</td>
+          <td class="text-muted" style="font-size:13px;">${fmtDateTime(j.updated_at || j.created_at)}</td>
+          <td style="text-align:right;"><a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${encodeURIComponent(j.id)}">查看詳情</a></td>
         `;
         rowsEl.appendChild(tr);
       }
@@ -548,11 +548,8 @@
     reloadBtn2.addEventListener("click", loadProfile);
 
     (async () => {
-      try {
-        await loadProfile();
-      } catch (e) {
-        errorEl.textContent = "載入失敗：" + (e?.message || e);
-      }
+      try { await loadProfile(); } 
+      catch (e) { errorEl.textContent = "載入失敗：" + (e?.message || e); }
     })();
 
     window.addEventListener("pageshow", function (e) {

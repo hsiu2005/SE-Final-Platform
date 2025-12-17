@@ -389,3 +389,357 @@ body {
     font-size: 26px;
   }
 }
+
+/* ==========================================================================
+   1. 核心變數與基礎設定 (Variables & Reset)
+   ========================================================================== */
+:root {
+  /* 顏色主題：柔和奶油黃 + 沉穩綠 */
+  --bg: #FDFCF8;           /* 最終定案：極淡的米白色，比純白更有質感 */
+  --card-bg: #ffffff;
+  
+  --border-soft: #e0e0e0;  /* 柔和邊框 */
+  --border-focus: #5e8f78; /* Focus 時的主色 */
+
+  --accent-yellow: #e4c478;
+  --accent-green: #5e8f78;       /* 核心主色 */
+  --accent-green-dark: #4c7663;  /* Hover 用深綠 */
+  --accent-green-soft: #f1f7f4;  /* 淡綠底色 (Tag 用) */
+
+  --text-main: #222222;
+  --text-muted: #888888;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Microsoft JhengHei", Arial, sans-serif;
+  font-size: 16px; /* 全站預設字體 */
+  background-color: var(--bg);
+  color: var(--text-main);
+  /* 字體渲染優化，讓文字更清晰高級 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 通用工具類 */
+.text-muted { color: var(--text-muted); }
+.error-text { color: #b30000; margin: 8px 0; }
+
+/* ==========================================================================
+   2. 登入/註冊頁面專用樣式 (Authentication)
+   ========================================================================== */
+
+/* 外層容器：左右佈局 */
+.auth-shell--minimal {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px; /* 左右區塊間距 */
+  padding: 40px 20px;
+}
+
+/* 左側：品牌識別區 */
+.auth-panel--minimal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* 品牌名稱：使用 Georgia 襯線體增加人文感 */
+.auth-panel--minimal .brand-name {
+  font-family: 'Georgia', serif;
+  font-size: 38px; /* 大氣的標題 */
+  font-weight: 700;
+  color: #2c3e34;  /* 深綠黑 */
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.auth-panel--minimal .brand-tagline {
+  margin-top: 12px;
+  font-size: 16px;
+  color: var(--accent-green);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+
+/* 品牌上方的黃色裝飾線 */
+.auth-panel--minimal .brand-block::before {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 4px;
+  background-color: var(--accent-yellow);
+  margin-bottom: 20px;
+  border-radius: 2px;
+}
+
+/* 右側：登入卡片 */
+.auth-card--split {
+  flex: 0 0 400px; /* 固定寬度，視覺更穩定 */
+  background: var(--card-bg);
+  /* 高級感關鍵：極細邊框 + 柔和擴散陰影 */
+  border: 1px solid rgba(94, 143, 120, 0.15);
+  box-shadow: 0 20px 40px -10px rgba(94, 143, 120, 0.1);
+  border-radius: 12px; /* 現代化圓角 */
+  padding: 40px;
+}
+
+/* 卡片內標題 */
+.auth-head { margin-bottom: 32px; text-align: center; }
+.auth-title { font-size: 28px; font-weight: 700; color: #222; margin-bottom: 8px; letter-spacing: -0.01em; }
+.auth-subtitle { font-size: 15px; color: var(--text-muted); margin-bottom: 24px; }
+
+/* 隱藏卡片內重複的小 Brand (保持畫面乾淨) */
+.brand-mini { display: none; }
+
+/* 底部連結區 */
+.auth-footer {
+  margin-top: 24px;
+  font-size: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-meta {
+  margin-top: 30px;
+  font-size: 12px;
+  color: #bbb;
+  font-family: monospace;
+  text-align: center;
+}
+
+/* ==========================================================================
+   3. 表單元件 (Forms & Buttons) - 全站共用
+   ========================================================================== */
+
+.form { display: flex; flex-direction: column; gap: 16px; }
+.form-row { display: flex; flex-direction: column; }
+
+.form-label {
+  display: block;
+  font-size: 15px; /* 清晰易讀的大小 */
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.form-control {
+  width: 100%;
+  height: 48px; /* 增加高度，更好點擊 */
+  padding: 0 16px;
+  font-size: 16px; /* 防止手機縮放的標準大小 */
+  color: #333;
+  background-color: #fff;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px; /* 統一圓角 */
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.form-control:focus {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 4px rgba(94, 143, 120, 0.12); /* 綠色光暈 */
+}
+
+.form-control::placeholder {
+  color: #ccc;
+  font-size: 15px;
+}
+
+/* 按鈕樣式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  width: 100%; /* 預設全寬，適合登入頁 */
+}
+
+.btn-primary {
+  background-color: var(--accent-green);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(94, 143, 120, 0.3);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-green-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(94, 143, 120, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 文字連結樣式 */
+.link-inline {
+  color: var(--accent-green);
+  font-weight: 600;
+  text-decoration: none;
+  position: relative;
+}
+
+.link-inline:hover::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 1.5px;
+  bottom: -2px;
+  left: 0;
+  background-color: currentColor;
+}
+
+/* ==========================================================================
+   4. 內部頁面樣式 (Internal Dashboard/Table)
+   ========================================================================== */
+/* 這部分保留你原本的設定，以免影響登入後的頁面 */
+
+.page {
+  min-height: 100vh;
+  padding: 24px 16px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.page-inner { width: 100%; max-width: 1100px; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.page-title { margin: 0 0 4px; font-size: 26px; font-weight: 700; }
+.page-subtitle { margin: 0; font-size: 14px; color: var(--text-muted); }
+
+.who-tag {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: var(--accent-green-soft);
+  color: var(--accent-green);
+}
+
+.toolbar {
+  margin: 12px 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.toolbar-spacer { flex: 1 1 auto; }
+
+/* 內部頁面按鈕 (次要) */
+.btn-secondary {
+  background-color: #ffffff;
+  border: 1px solid var(--border-soft);
+  color: var(--text-main);
+  width: auto; /* 內部按鈕不用全寬 */
+  height: 40px;
+  font-size: 14px;
+}
+.btn-secondary:hover {
+  background-color: #fffaf1;
+  border-color: var(--accent-yellow);
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  padding: 16px 18px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.03);
+}
+
+/* 表格樣式 */
+.table-wrapper { width: 100%; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #eee7d8;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.table th {
+  text-align: left;
+  font-weight: 600;
+  color: #555;
+  background-color: #fffaf1;
+}
+.table tr:hover { background-color: #fff9ec; }
+.table a:not(.btn) { color: var(--accent-green); text-decoration: none; }
+.table a:not(.btn):hover { text-decoration: underline; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.badge-yellow { background-color: #fff3c7; color: #7a6b1f; }
+.badge-green { background-color: #e0f3e7; color: #276348; }
+
+/* ==========================================================================
+   5. 響應式設計 (RWD)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Auth Page RWD */
+  .auth-shell--minimal {
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 16px;
+  }
+  
+  .auth-panel--minimal {
+    align-items: center;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  
+  .auth-panel--minimal .brand-block::before { margin: 0 auto 16px; }
+  .auth-panel--minimal .brand-name { font-size: 32px; }
+
+  .auth-card--split {
+    flex: auto;
+    width: 100%;
+    padding: 30px 24px;
+  }
+
+  .auth-title { font-size: 26px; }
+
+  /* Internal Page RWD */
+  .page { padding: 16px 10px 32px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+}

@@ -165,7 +165,7 @@ async def contractor_my_jobs(user=Depends(require_role("contractor")), conn=Depe
         await cur.execute(
             """
             SELECT 
-                j.id, j.title, j.status, j.updated_at,
+                j.id, j.title, j.status, j.due_date, j.updated_at,
                 u.username AS client_name,
                 b.price AS my_bid_price,
                 (j.contractor_id = %s) AS am_i_winner

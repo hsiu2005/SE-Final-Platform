@@ -2,14 +2,29 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>登入 | 工作委託平台</title>
+  <title>登入 | TaskLink</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/appearance.css">
 </head>
 <body>
-  <div class="auth-page">
-    <div class="auth-card">
-      <h1 class="auth-title">歡迎回來</h1>
+  <main class="auth-shell auth-shell--minimal">
+
+    <!-- 左側：只留品牌（不再寫一堆敘述） -->
+    <section class="auth-panel auth-panel--minimal" aria-hidden="true">
+      <div class="brand-block">
+        <div class="brand-name">TaskLink</div>
+        <div class="brand-tagline">工作委託與接案平台</div>
+      </div>
+    </section>
+
+    <!-- 右側：表單主角 -->
+    <section class="auth-card auth-card--split">
+      <header class="auth-head">
+        
+
+        <h1 class="auth-title">登入</h1>
+        <p class="auth-subtitle">歡迎回來，繼續管理你的案件</p>
+      </header>
 
       <form method="POST" action="/login" novalidate class="form">
         <div class="form-row">
@@ -20,6 +35,7 @@
             type="text"
             name="username"
             autocomplete="username"
+            placeholder="輸入帳號"
             required
           >
         </div>
@@ -32,16 +48,22 @@
             type="password"
             name="password"
             autocomplete="current-password"
+            placeholder="輸入密碼"
             required
           >
         </div>
 
-        <div class="button-row">
-          <button type="submit" class="btn btn-primary">登入</button>
-          <a href="/registerForm.html" class="btn btn-ghost">還沒有帳號？前往註冊</a>
+        <button type="submit" class="btn btn-primary btn-block">登入</button>
+
+        <div class="auth-footer">
+          <span class="text-muted">還沒有帳號？</span>
+          <a href="/registerForm.html" class="link-inline">建立新帳號</a>
         </div>
+
+        <div class="auth-meta text-muted">© 2025 TaskLink</div>
       </form>
-    </div>
-  </div>
+    </section>
+
+  </main>
 </body>
 </html>

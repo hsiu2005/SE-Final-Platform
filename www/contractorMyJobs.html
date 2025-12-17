@@ -3,67 +3,107 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>承包人：我的報價 / 案件</title>
-  <link rel="stylesheet" href="/style.css">
+  <title>我的報價 / 案件 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
+  <style>
+    /* 強制按鈕文字不換行 */
+    .btn { white-space: nowrap; }
+    
+    /* 工具列排版 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbar-actions { display: flex; gap: 8px; }
+
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+    }
+
+    /* === 核心修改：狀態膠囊樣式 (從 clientJobs 移植過來) === */
+    .badge-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      border: 1px solid transparent; white-space: nowrap;
+    }
+    /* 各種狀態配色 */
+    .st-blue   { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; } /* 待選標 */
+    .st-orange { background: #fff3e0; color: #e65100; border-color: #ffe0b2; } /* 邀請中 */
+    .st-purple { background: #f3e5f5; color: #7b1fa2; border-color: #e1bee7; } /* 進行中 */
+    .st-indigo { background: #e8eaf6; color: #3f51b5; border-color: #c5cae9; } /* 待驗收 */
+    .st-red    { background: #ffebee; color: #c62828; border-color: #ffcdd2; } /* 退件 */
+    .st-green  { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; } /* 已結案 */
+    .st-gray   { background: #f5f5f5; color: #616161; border-color: #e0e0e0; } /* 未知 */
+  </style>
 </head>
 <body class="page">
   <div class="page-inner">
+    
     <header class="page-header">
       <div>
-        <h1 class="page-title">承包人：我的報價 / 案件</h1>
+        <h1 class="page-title">我的報價 / 案件</h1>
         <p class="page-subtitle">
-          這裡可以查看您曾經報價過的案件，以及您已承接或被退件的案件狀態。
+          查看您曾經報價過的案件，以及目前已承接或被退件的案件進度。
         </p>
       </div>
-      <span id="who" class="who-tag"></span>
+      <div style="align-self: center;">
+         <span id="who" class="who-tag">載入中...</span>
+      </div>
     </header>
 
     <div class="toolbar">
-      <a class="btn btn-secondary" href="/contractorMyInvitations.html">我的邀請</a>
-      <a class="btn btn-primary" href="/contractorJobs.html">瀏覽可報價案件</a>
+      <div class="toolbar-left" style="display:flex; gap:10px;">
+        <a class="btn btn-primary" href="/contractorMyInvitations.html">我的邀請</a>
+        <a class="btn btn-secondary" href="/contractorJobs.html">瀏覽可報價案件</a>
+      </div>
 
-      <span class="toolbar-spacer"></span>
-
-      <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
-      <a class="btn btn-secondary" href="/closedHistory.html">已結案歷史專案</a>
-      <a class="btn btn-secondary" href="/history.html">查看歷史紀錄</a>
-      <!--<a class="btn btn-secondary" href="/logout">切換帳號</a>-->
-      <a class="btn btn-secondary" href="/logout">登出</a>
+      <div class="toolbar-actions">
+        <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary" href="/history.html">操作紀錄</a>
+        <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
     </div>
 
     <div class="card">
       <div id="error" class="error-text"></div>
 
-      <!-- ✅ 狀態 Tab（取代下拉） -->
-      <div class="table-tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin: 6px 0 10px;">
-        <button class="btn btn-secondary" type="button" data-st="all">全部</button>
-        <button class="btn btn-secondary" type="button" data-st="pending">待選標</button>
-        <button class="btn btn-secondary" type="button" data-st="accepted">進行中</button>
-        <button class="btn btn-secondary" type="button" data-st="uploaded">待驗收</button>
-        <button class="btn btn-secondary" type="button" data-st="rejected">退件</button>
-        <button class="btn btn-secondary" type="button" data-st="closed">已結案</button>
+      <div class="table-tabs">
+        <button class="filter-chip active" type="button" data-st="all">全部</button>
+        <button class="filter-chip" type="button" data-st="pending">待選標</button>
+        <button class="filter-chip" type="button" data-st="accepted">進行中</button>
+        <button class="filter-chip" type="button" data-st="uploaded">待驗收</button>
+        <button class="filter-chip" type="button" data-st="rejected">退件</button>
+        <button class="filter-chip" type="button" data-st="closed">已結案</button>
       </div>
 
-      <!-- ✅ 只保留排序下拉 -->
-      <div class="table-toolbar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin: 12px 0 14px;">
-        <label class="text-muted">排序：</label>
-        <select id="sortDueSelect" class="btn btn-secondary">
-          <option value="due_desc">時間：晚 → 早</option>
-          <option value="due_asc">時間：早 → 晚</option>
-        </select>
+      <div style="display:flex; justify-content: flex-end; align-items:center; margin-bottom: 16px;">
+        <div style="display:flex; align-items:center; gap: 8px;">
+           <label class="text-muted" style="font-size: 14px;">排序：</label>
+           <select id="sortDueSelect" class="sort-select">
+             <option value="due_desc">截止日：由晚到早</option>
+             <option value="due_asc">截止日：由早到晚</option>
+           </select>
+        </div>
       </div>
 
       <div class="table-wrapper">
         <table id="jobsTable" class="table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>標題</th>
+              <th style="width: 60px;">ID</th>
+              <th>案件標題</th>
               <th>委託人</th>
-              <th>案件狀態</th>
-              <th>我的報價</th>
+              <th style="width: 120px;">案件狀態</th> <th style="width: 100px;">我的報價</th>
               <th>我的狀態</th>
-              <th>動作</th>
+              <th style="width: 100px; text-align: left;">操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -83,137 +123,169 @@
       const ct = resp.headers.get("content-type") || "";
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
+    const escapeHTML = s => s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const currency = new Intl.NumberFormat("zh-Hant-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 });
+    const fmtMoney = n => (n == null ? '<span class="text-muted">—</span>' : `<span style="font-weight:600; color:#333;">${currency.format(Number(n))}</span>`);
 
-    const escapeHTML = s =>
-      s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    const currency = new Intl.NumberFormat("zh-Hant-TW", {
-      style: "currency", currency: "TWD", maximumFractionDigits: 0,
-    });
-    const fmtMoney = n => (n == null ? '<span class="text-muted">—</span>' : currency.format(Number(n)));
+    /* === 核心修改：狀態轉膠囊函式 === */
+    function getStatusBadge(status) {
+      const map = {
+        "pending":  { text: "待選標", cls: "st-blue" },
+        "invited":  { text: "邀請中", cls: "st-orange" },
+        "accepted": { text: "進行中", cls: "st-purple" },
+        "uploaded": { text: "待驗收", cls: "st-indigo" },
+        "rejected": { text: "被退件", cls: "st-red" },
+        "closed":   { text: "已結案", cls: "st-green" }
+      };
+      
+      const item = map[status] || { text: status || "未知", cls: "st-gray" };
+      return `<span class="badge-pill ${item.cls}">${item.text}</span>`;
+    }
 
     async function loadMe() {
       const me = await fetchJSON("/me");
       if (!me) return;
-      document.getElementById("who").textContent = `登入中：${me.role} ${me.username}`;
+      document.getElementById("who").textContent = `${me.role === 'client' ? '委託人' : '承包人'} · ${me.username}`;
     }
 
     const sortSel = document.getElementById("sortDueSelect");
-
-    // ✅ Tab 目前選到哪個狀態
     let currentStatus = "all";
 
-    function getSortTime(j) {
-      // 依序：due_date → updated_at → created_at → 0
-      const pick = (v) => {
-        if (!v) return null;
-        const t = Date.parse(v);
-        return Number.isNaN(t) ? null : t;
-      };
-      return (
-        pick(j?.due_date) ??
-        pick(j?.updated_at) ??
-        pick(j?.created_at) ??
-        0
-      );
+    function getDueTime(j) {
+      let v = j?.due_date;
+      if (!v) return null;
+
+      // 常見後端格式 "YYYY-MM-DD HH:mm:ss" → 轉 ISO "YYYY-MM-DDTHH:mm:ss"
+      if (typeof v === "string" && v.includes(" ") && !v.includes("T")) {
+        v = v.replace(" ", "T");
+      }
+
+      const t = new Date(v).getTime();
+      return Number.isNaN(t) ? null : t;
     }
+
+
+    document.querySelectorAll("[data-st]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentStatus = btn.getAttribute("data-st") || "all";
+        document.querySelectorAll("[data-st]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        loadJobs();
+      });
+    });
+
+    if (sortSel) sortSel.addEventListener("change", loadJobs);
 
     async function loadJobs() {
       const data = await fetchJSON("/contractor/my-jobs");
       if (!data) return;
-
       const tbody = document.querySelector("#jobsTable tbody");
       tbody.innerHTML = "";
-
       let items = data.items || [];
+      if (currentStatus !== "all") items = items.filter(j => (j.status || "") === currentStatus);
 
-      // ✅ 狀態篩選（Tab）
-      if (currentStatus !== "all") {
-        items = items.filter(j => (j.status || "") === currentStatus);
-      }
-
-      // ✅ 空資料訊息：真的沒案件 vs Tab 篩選後沒有
       if (items.length === 0) {
         const tr = document.createElement("tr");
-        const msg = (currentStatus === "all")
-          ? "您尚未報價或承接任何案件"
-          : `沒有符合「${currentStatus}」狀態的案件`;
-        tr.innerHTML = `<td colspan="7" class="text-muted">${msg}</td>`;
+        const msg = (currentStatus === "all") ? "您尚未報價或承接任何案件" : `沒有符合「${currentStatus}」狀態的案件`;
+        tr.innerHTML = `<td colspan="7" class="text-muted" style="text-align:center; padding: 40px 0;">${msg}</td>`;
         tbody.appendChild(tr);
         return;
       }
 
-      // ✅ 排序（就算沒 due_date 也會用 updated_at/created_at）
+      //const sortMode = sortSel ? sortSel.value : "due_desc";
+
+      function parseDueMillis(raw) {
+        if (!raw) return NaN;
+        let v = String(raw).trim();
+
+        // 1) "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ss"
+        if (v.includes(" ") && !v.includes("T")) v = v.replace(" ", "T");
+
+        // 2) 如果是 "YYYY-MM-DD"（只有日期）也 OK，Chrome 會吃
+        // 3) 若沒有時區且你後端其實是台灣時間，補上 +08:00（避免瀏覽器用 UTC 解）
+        //    只在「沒有Z、沒有+hh:mm、也沒有-hh:mm」才補
+        if (!/[zZ]|[+\-]\d{2}:\d{2}$/.test(v)) {
+          // 若有時間就補時區；只有日期也補（會變成當天 00:00:00+08:00）
+          v = v.includes("T") ? `${v}+08:00` : `${v}T00:00:00+08:00`;
+        }
+
+        const t = Date.parse(v);
+        return Number.isNaN(t) ? NaN : t;
+      }
+
       const sortMode = sortSel ? sortSel.value : "due_desc";
+
       items.sort((a, b) => {
-        const ad = getSortTime(a);
-        const bd = getSortTime(b);
-        return (sortMode === "due_asc") ? (ad - bd) : (bd - ad);
+        const A = parseDueMillis(a.due_date);
+        const B = parseDueMillis(b.due_date);
+
+        // 你說一定有截止日，所以這裡如果還 NaN，就代表格式真的怪到不行
+        // 先用 id 當 fallback，至少排序會穩定且可看出變化
+        if (Number.isNaN(A) && Number.isNaN(B)) return (sortMode === "due_asc") ? (a.id - b.id) : (b.id - a.id);
+        if (Number.isNaN(A)) return 1;
+        if (Number.isNaN(B)) return -1;
+
+        return (sortMode === "due_asc") ? (A - B) : (B - A);
       });
+
+
+
+
+
 
       for (const j of items) {
         let myStatus = "";
-        if (j.status === "pending") {
-          myStatus = '<span class="text-muted">待選標</span>';
+
+        if (j.status === "closed") {
+          myStatus = j.am_i_winner
+            ? `<span style="color:var(--accent-green); font-weight:600;">✓ 得標 (已結案)</span>`
+            : `<span class="text-muted" style="font-size:13px;">未得標 (已結案)</span>`;
+
+        } else if (j.status === "pending") {
+          myStatus = '<span class="text-muted" style="font-size:13px;">等待選標</span>';
+
         } else if (j.am_i_winner) {
           if (j.status === "rejected") {
-            myStatus = '<span class="badge badge-yellow">被退件（點詳情重傳）</span>';
+            myStatus = '<span style="color:#b30000; font-weight:600;">⚠ 被退件 (請重傳)</span>';
+          } else if (j.status === "uploaded") {
+            myStatus = `<span style="color:var(--accent-green); font-weight:600;">✓ 得標 (待驗收)</span>`;
           } else {
-            myStatus = `<span class="badge badge-green">得標（狀態：${escapeHTML(j.status)}）</span>`;
+            myStatus = `<span style="color:var(--accent-green); font-weight:600;">✓ 得標 (進行中)</span>`;
           }
+
         } else {
-          myStatus = `<span class="text-muted">未得標（狀態：${escapeHTML(j.status)}）</span>`;
+          // 不要再顯示 (closed) 這種原始狀態字
+          myStatus = `<span class="text-muted" style="font-size:13px;">未得標</span>`;
         }
 
+
+        // 這裡將原本的 escapeHTML(j.status) 換成 getStatusBadge(j.status)
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${j.id}</td>
-          <td>${escapeHTML(j.title)}</td>
-          <td>${escapeHTML(j.client_name)}</td>
-          <td>${escapeHTML(j.status)}</td>
+          <td class="text-muted" style="font-size: 14px;">#${j.id}</td>
+          <td><span class="job-title-text">${escapeHTML(j.title)}</span></td>
+          <td><span style="color:#555;">${escapeHTML(j.client_name)}</span></td>
+          <td>${getStatusBadge(j.status)}</td>
           <td>${fmtMoney(j.my_bid_price)}</td>
           <td>${myStatus}</td>
-          <td>
-            <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${j.id}">
-              查看詳情
-            </a>
+          <td style="text-align: right;">
+            <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${j.id}">查看詳情</a>
           </td>
         `;
         tbody.appendChild(tr);
       }
     }
 
-    // ✅ Tab：點了就切 currentStatus + 重刷 + 視覺高亮
-    document.querySelectorAll("[data-st]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        currentStatus = btn.getAttribute("data-st") || "all";
-        loadJobs();
-
-        document.querySelectorAll("[data-st]").forEach(b => {
-          b.classList.remove("btn-primary");
-          b.classList.add("btn-secondary");
-        });
-        btn.classList.add("btn-primary");
-        btn.classList.remove("btn-secondary");
-      });
-    });
-
-    if (sortSel) sortSel.addEventListener("change", loadJobs);
-
     (async () => {
       try {
         await loadMe();
         const firstTab = document.querySelector('[data-st="all"]');
-        if (firstTab) firstTab.click();
-        else await loadJobs();
+        if (firstTab) firstTab.click(); else await loadJobs();
       } catch (e) {
         document.getElementById("error").textContent = "載入失敗：" + e;
       }
     })();
-
-    window.addEventListener("pageshow", function (e) {
-      if (e.persisted) location.reload();
-    });
+    window.addEventListener("pageshow", function (e) { if (e.persisted) location.reload(); });
   </script>
 </body>
 </html>

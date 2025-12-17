@@ -3,29 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>新建案件</title>
-  <!-- 用你現在的共用樣式 -->
-  <link rel="stylesheet" href="/style.css">
+  <title>新建案件 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
+  <style>
+    /* === 視覺優化 CSS (全站統一風格) === */
+
+    /* 1. 高度與質感統一 */
+    .form-control {
+      height: 40px;        /* 標準高度 */
+      font-size: 14px;
+      border-radius: 6px;
+      padding: 0 12px;
+      color: #333;
+    }
+    textarea.form-control {
+      height: auto;        /* 多行輸入框高度自動 */
+      padding: 12px;
+      line-height: 1.6;
+    }
+    
+    /* 下拉選單箭頭優化 (瀏覽器預設樣式有時很醜，這裡簡單統一) */
+    select.form-control {
+      background-color: #fff;
+      cursor: pointer;
+    }
+
+    /* 2. 工具列排版 */
+    .btn { white-space: nowrap; }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+    }
+
+    /* 3. 雙欄排版系統 (用於預算與日期) */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 768px) {
+      .form-grid-2 { grid-template-columns: 1fr; gap: 16px; }
+    }
+  </style>
 </head>
 <body class="page">
-  <div class="page-inner">
+  <div class="page-inner" style="max-width: 1100px;">
 
-    <!-- 頁首：標題 + 返回按鈕 -->
     <header class="page-header">
       <div>
         <h1 class="page-title">新建案件</h1>
-        <p class="page-subtitle">請填寫案件內容、預算與截止日，建立後承包人即可查看與報價。</p>
+        <p class="page-subtitle">填寫案件需求、預算與截止日，發布後即可開始接收報價。</p>
+      </div>
+      <div style="align-self: center;">
+        <span id="who" class="who-tag"></span>
       </div>
     </header>
 
-    <!-- 內容卡片：表單 -->
-    <div class="card">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <a class="btn btn-secondary" href="/clientJobs.html">回我的案件</a>
+      </div>
+
+      <div class="toolbar-actions" style="display:flex; gap:8px;">
+        <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary" href="/history.html">操作紀錄</a>
+        <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
+    </div>
+
+    <div class="card" style="width: 100%; margin-top: 10px; padding: 50px;">
       <div id="error" class="error-text"></div>
 
       <form method="POST" action="/job/new" class="form">
-        <!-- ⚠ 這兩個 name 一定要是 title / content -->
+        
         <div class="form-row">
-          <label class="form-label" for="title">標題</label>
+          <label class="form-label" for="title">案件標題</label>
           <input
             type="text"
             id="title"
@@ -34,74 +96,96 @@
             required
             minlength="1"
             maxlength="100"
-            placeholder="例如：單頁形象網站設計"
+            placeholder="例如：企業形象網站 RWD 設計與開發"
+            style="font-weight: 600;"
           >
         </div>
 
-        <div class="form-row">
-          <label class="form-label" for="content">內容</label>
-          <textarea
-            id="content"
-            name="content"
-            class="form-control"
-            rows="6"
-            maxlength="5000"
-            placeholder="請描述案件需求、預期成果、注意事項等"
-            required
-          ></textarea>
-        </div>
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="budget">預算 (TWD)</label>
+            <div style="position: relative;">
+              <span style="position: absolute; left: 12px; top: 10px; color: #999; font-size: 13px; font-weight: 500;">NT$</span>
+              <input
+                type="number"
+                id="budget"
+                name="budget_str"
+                class="form-control"
+                min="0"
+                max="999999999"
+                step="1"
+                inputmode="numeric"
+                placeholder="20,000 (留空則為報價制)"
+                style="padding-left: 48px; font-weight: 600; color: #2c3e34;"
+              >
+            </div>
+          </div>
 
-        <!-- ⚠ 下面三個 name 也要維持原本：budget_str / due_date_str / invited_contractor_id_str -->
-        <div class="form-row">
-          <label class="form-label" for="budget">
-            預算（若為邀請制，此為報價，選填）
-          </label>
-          <input
-            type="number"
-            id="budget"
-            name="budget_str"
-            class="form-control"
-            min="0"
-            max="999999999"
-            step="1"
-            inputmode="numeric"
-            placeholder="例如：20000"
-          >
-        </div>
-
-        <div class="form-row">
-          <label class="form-label" for="due_date">截止日（選填）</label>
-          <input
-            type="date"
-            id="due_date"
-            name="due_date_str"
-            class="form-control"
-            placeholder="YYYY-MM-DD"
-          >
+          <div class="form-row">
+            <label class="form-label" for="due_date">截止日期 (選填)</label>
+            <input
+              type="date"
+              id="due_date"
+              name="due_date_str"
+              class="form-control"
+              style="color: #444;"
+            >
+          </div>
         </div>
 
         <div class="form-row">
-          <label class="form-label" for="invited_contractor">指定承包人（選填）</label>
+          <label class="form-label" for="invited_contractor">指定邀請承包人 (選填)</label>
           <select
             id="invited_contractor"
             name="invited_contractor_id_str"
             class="form-control"
           >
-            <option value="">-- 全公開（任何承包人皆可報價） --</option>
+            <option value="">-- 公開徵求 (所有承包人皆可報價) --</option>
           </select>
+          <p class="text-muted" style="margin: 4px 0 0; font-size: 13px;">若選擇特定對象，案件將僅對該承包人可見。</p>
         </div>
 
-        <div class="button-row">
-          <button type="submit" class="btn btn-primary">送出案件</button>
-          <a href="/clientJobs.html" class="btn btn-secondary">回「我的案件」列表</a>
+        <div class="form-row">
+          <label class="form-label" for="content">案件詳細內容</label>
+          <textarea
+            id="content"
+            name="content"
+            class="form-control"
+            rows="8"
+            maxlength="5000"
+            placeholder="請詳細描述案件需求、預期成果、技術規格或參考範例..."
+            required
+          ></textarea>
         </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 32px 0;">
+
+        <div style="display: flex; gap: 16px; justify-content: flex-end;">
+          <a href="/clientJobs.html" class="btn btn-secondary" style="width: 120px;">取消</a>
+          <button type="submit" class="btn btn-primary" style="width: 160px;">確認發布</button>
+        </div>
+
       </form>
     </div>
   </div>
 
   <script>
-    // 保留你原本的承包人列表載入邏輯，只是套上新的 class/id
+    // 1. 取得登入資訊 (為了顯示右上角 who-tag)
+    async function loadMe() {
+      try {
+        const resp = await fetch("/me");
+        if (resp.ok) {
+          const me = await resp.json();
+          const who = document.getElementById("who");
+          if(who) who.textContent = `委託人 · ${me.username}`;
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    // 2. 載入承包人列表
     (async () => {
+      await loadMe(); // 先載入身分
+
       try {
         const resp = await fetch("/contractors/list");
         if (resp.status === 401) {
@@ -119,6 +203,7 @@
           data.items.forEach(c => {
             const option = document.createElement("option");
             option.value = c.id;
+            // 讓選項看起來更整齊
             option.textContent = `${c.username} (ID: ${c.id})`;
             selectEl.appendChild(option);
           });

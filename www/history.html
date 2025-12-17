@@ -3,47 +3,105 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>帳戶歷史紀錄</title>
-  <link rel="stylesheet" href="/style.css">
+  <title>歷史操作紀錄 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
+  <style>
+    /* === 視覺優化 === */
+    .btn { white-space: nowrap; }
+    
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+    }
+
+    /* 事件類型膠囊樣式 */
+    .badge-event {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 6px; /* 稍微方一點的圓角 */
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      border: 1px solid transparent;
+    }
+    
+    /* 根據不同類型定義顏色 */
+    .evt-blue { background-color: #e3f2fd; color: #1565c0; border-color: #bbdefb; } /* 一般操作 */
+    .evt-green { background-color: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; } /* 成功/結案 */
+    .evt-orange { background-color: #fff3e0; color: #ef6c00; border-color: #ffe0b2; } /* 流程/邀請 */
+    .evt-red { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; }   /* 退件/拒絕 */
+    .evt-gray { background-color: #f5f5f5; color: #616161; border-color: #e0e0e0; }   /* 其他 */
+
+    /* 讓表格內容換行好看一點 */
+    .table td.note {
+      white-space: pre-wrap; /* 允許換行 */
+      word-break: break-word;
+      max-width: 300px; /* 限制寬度以免撐爆 */
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body class="page">
-  <div class="page-inner">
+  <div class="page-inner" style="max-width: 1100px;">
+    
     <header class="page-header">
       <div>
-        <h1 class="page-title">帳戶歷史紀錄</h1>
+        <h1 class="page-title">操作紀錄</h1>
         <p class="page-subtitle">
-          查看這個帳號在各案件上的操作與事件紀錄。
+          檢視此帳號在所有案件上的操作軌跡與事件紀錄。
         </p>
       </div>
-      <span id="who" class="who-tag"></span>
+      <div style="align-self: center;">
+         <span id="who" class="who-tag">載入中...</span>
+      </div>
     </header>
 
     <div class="toolbar">
-      <a class="btn btn-secondary" href="/">← 回我的案件列表</a>
+      
+      <div class="toolbar-left" id="backLinkContainer" style="display:flex;">
+        </div>
 
-      <span class="toolbar-spacer"></span>
-
-      <a class="btn btn-secondary" href="/logout">登出</a>
+      <div class="toolbar-actions" style="display:flex; gap:8px;">
+        <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary btn-active" href="/history.html">操作紀錄</a> <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="width: 100%; margin-top: 10px; padding: 40px;">
       <div id="error" class="error-text"></div>
 
       <div class="table-wrapper">
         <table id="historyTable" class="table table-history">
           <thead>
             <tr>
-              <th>時間</th>
-              <th>案件 (ID)</th>
-              <th>標題</th>
-              <th>事件類型</th>
-              <th>事件訊息</th>
-              <th>詳細描述</th>
-              <th>操作者</th>
+              <th style="width: 160px;">發生時間</th>
+              <th style="width: 80px;">案件 ID</th>
+              <th style="min-width: 150px;">案件標題</th>
+              <th style="width: 120px;">事件類型</th>
+              <th style="min-width: 200px;">事件訊息</th>
+              <th style="min-width: 150px;">詳細描述</th>
+              <th style="width: 120px;">操作者</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
+      </div>
+      
+      <div id="emptyMsg" class="text-muted" style="display:none; text-align:center; padding: 40px 0;">
+        目前沒有任何歷史紀錄
       </div>
     </div>
   </div>
@@ -62,37 +120,50 @@
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
 
-    const escapeHTML = s =>
-      s == null
-        ? ""
-        : String(s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
+    const escapeHTML = s => s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const fmtDate = iso => (!iso ? "" : new Date(iso).toLocaleString("zh-Hant-TW"));
 
-    const fmtDate = iso => (!iso ? "" : new Date(iso).toLocaleString());
+    // 優化版：回傳帶有顏色的 Badge HTML
+    function fmtEventTypeBadge(type) {
+      const map = {
+        // 建立與編輯 (藍)
+        JOB_CREATED:      { text: "案件建立", cls: "evt-blue" },
+        REPORT_UPLOADED:  { text: "上傳成果", cls: "evt-blue" },
+        REPORT_RE_UPLOADED:{ text: "重新上傳", cls: "evt-blue" },
+        
+        // 流程邀請 (橘)
+        JOB_INVITED:      { text: "發出邀請", cls: "evt-orange" },
+        BID_SUBMITTED:    { text: "提交報價", cls: "evt-orange" },
+        
+        // 正向結果 (綠)
+        INVITE_ACCEPTED:  { text: "接受邀請", cls: "evt-green" },
+        BID_SELECTED:     { text: "委託人選標", cls: "evt-green" },
+        JOB_CLOSED:       { text: "驗收結案", cls: "evt-green" },
 
-    function fmtEventType(type) {
-      const typeMap = {
-        JOB_CREATED: "案件建立",
-        JOB_INVITED: "發出邀請",
-        INVITE_ACCEPTED: "接受邀請",
-        INVITE_DECLINED: "婉拒邀請",
-        BID_SUBMITTED: "提交報價",
-        BID_SELECTED: "委託人選標",
-        REPORT_UPLOADED: "上傳成果",
-        REPORT_RE_UPLOADED: "重新上傳",
-        JOB_REJECTED: "委託人退件",
-        JOB_CLOSED: "驗收結案",
+        // 負向結果 (紅)
+        INVITE_DECLINED:  { text: "婉拒邀請", cls: "evt-red" },
+        JOB_REJECTED:     { text: "委託人退件", cls: "evt-red" },
       };
-      return typeMap[type] || type;
+
+      const info = map[type] || { text: type, cls: "evt-gray" };
+      return `<span class="badge-event ${info.cls}">${info.text}</span>`;
     }
 
     async function loadMe() {
       const me = await fetchJSON("/me");
-      if (!me) return;
-      document.getElementById("who").textContent =
-        `登入中：${me.role} ${me.username}`;
+      if (!me) return null;
+      
+      const roleText = me.role === 'client' ? '委託人' : '承包人';
+      document.getElementById("who").textContent = `${roleText} · ${me.username}`;
+      
+      // 動態生成返回按鈕
+      const backContainer = document.getElementById("backLinkContainer");
+      if (me.role === "client") {
+        backContainer.innerHTML = `<a class="btn btn-secondary" href="/clientJobs.html">回我的案件</a>`;
+      } else {
+        backContainer.innerHTML = `<a class="btn btn-secondary" href="/contractorMyJobs.html">回我的報價/案件</a>`;
+      }
+      return me;
     }
 
     async function loadHistory() {
@@ -103,25 +174,30 @@
       tbody.innerHTML = "";
 
       if (!data.items || data.items.length === 0) {
-        const tr = document.createElement("tr");
-        tr.innerHTML =
-          `<td colspan="7" class="text-muted">目前沒有任何歷史紀錄</td>`;
-        tbody.appendChild(tr);
+        document.getElementById("emptyMsg").style.display = "block";
         return;
       }
 
       for (const e of data.items) {
         const tr = document.createElement("tr");
+        
+        // 操作者顯示優化
+        const actor = e.actor_name 
+          ? `<span style="font-weight:500; color:#333;">${escapeHTML(e.actor_name)}</span>` 
+          : `<span class="text-muted" style="font-size:12px;">系統自動</span>`;
+
         tr.innerHTML = `
-          <td>${fmtDate(e.created_at)}</td>
-          <td><a href="/jobDetail.html?job_id=${e.job_id}">${e.job_id}</a></td>
-          <td>${escapeHTML(e.job_title)}</td>
-          <td><b>${fmtEventType(e.event_type)}</b></td>
-          <td class="note">${escapeHTML(e.message)}</td>
-          <td class="note">${escapeHTML(e.description)}</td>
-          <td class="text-muted">
-            ${e.actor_name ? escapeHTML(e.actor_name) : `(System #${e.actor_id})`}
+          <td class="text-muted" style="font-size:13px;">${fmtDate(e.created_at)}</td>
+          <td class="text-muted" style="font-size:13px;">#${e.job_id}</td>
+          <td>
+             <a href="/jobDetail.html?job_id=${e.job_id}" style="text-decoration:none;">
+               <span class="job-title-text">${escapeHTML(e.job_title)}</span>
+             </a>
           </td>
+          <td>${fmtEventTypeBadge(e.event_type)}</td>
+          <td class="note" style="color:#222;">${escapeHTML(e.message)}</td>
+          <td class="note" style="color:#777;">${escapeHTML(e.description)}</td>
+          <td>${actor}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -129,8 +205,8 @@
 
     (async () => {
       try {
-        await loadMe();
-        await loadHistory();
+        const me = await loadMe();
+        if (me) await loadHistory();
       } catch (e) {
         document.getElementById("error").textContent = "載入失敗：" + e;
       }

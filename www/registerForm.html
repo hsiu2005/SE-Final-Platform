@@ -2,60 +2,81 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>註冊 | 工作委託平台</title>
+  <title>註冊 | TaskLink</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/appearance.css">
 </head>
 <body>
-  <div class="auth-page">
-    <div class="auth-card">
-      <h1 class="auth-title">建立新帳號</h1>
+  <main class="auth-shell auth-shell--minimal">
+
+    <section class="auth-panel auth-panel--minimal">
+      <div class="brand-block">
+        <div class="brand-name">TaskLink</div>
+        <div class="brand-tagline">加入我們，開始高效協作</div>
+      </div>
+    </section>
+
+    <section class="auth-card auth-card--split">
+      <header class="auth-head">
+        <h1 class="auth-title">建立新帳號</h1>
+        <p class="auth-subtitle">只需幾秒鐘，即可開始管理您的案件</p>
+      </header>
 
       <form method="POST" action="/register" novalidate class="form">
+        
         <div class="form-row">
-          <label class="form-label" for="reg-username">帳號</label>
+          <label class="form-label" for="reg-username">設定帳號</label>
           <input
             id="reg-username"
             class="form-control"
             type="text"
             name="username"
             autocomplete="username"
+            placeholder="請輸入使用者名稱"
             required
           >
         </div>
 
         <div class="form-row">
-          <label class="form-label" for="reg-password">密碼</label>
+          <label class="form-label" for="reg-password">設定密碼</label>
           <input
             id="reg-password"
             class="form-control"
             type="password"
             name="password"
             autocomplete="new-password"
+            placeholder="請輸入密碼"
             required
           >
         </div>
 
         <div class="form-row">
-          <span class="form-label">角色</span>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="role" value="client" checked>
+          <label class="form-label">您想成為什麼角色？</label>
+          <div style="display: flex; gap: 24px; padding-top: 4px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
+              <input type="radio" name="role" value="client" checked style="width: 18px; height: 18px; accent-color: var(--accent-green);">
               委託人
             </label>
-            <label>
-              <input type="radio" name="role" value="contractor">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 15px; color: #333;">
+              <input type="radio" name="role" value="contractor" style="width: 18px; height: 18px; accent-color: var(--accent-green);">
               承包人
             </label>
           </div>
         </div>
 
-        <div class="button-row">
-          <button type="submit" class="btn btn-primary">註冊</button>
-          <a href="/loginForm.html" class="btn btn-ghost">已經有帳號了？前往登入</a>
+        <div style="margin-top: 12px;">
+          <button type="submit" class="btn btn-primary">立即註冊</button>
         </div>
+
+        <div class="auth-footer">
+          <span class="text-muted">已經有帳號了？</span>
+          <a href="/loginForm.html" class="link-inline">前往登入</a>
+        </div>
+
+        <div class="auth-meta">© 2025 TaskLink</div>
       </form>
-    </div>
-  </div>
+    </section>
+
+  </main>
 </body>
 </html>

@@ -3,58 +3,86 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>承包人：我的邀請</title>
-  <link rel="stylesheet" href="/style.css">
+  <title>我的邀請 | TaskLink</title>
+  <link rel="stylesheet" href="/appearance.css">
+  <style>
+    /* 按鈕文字不換行 */
+    .btn { white-space: nowrap; }
+    
+    /* 工具列左右分開 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* 手機版堆疊 */
+    @media (max-width: 900px) {
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-left, .toolbar-actions {
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      }
+    }
+  </style>
 </head>
-<body>
-  <div class="page">
-    <div class="page-inner">
-      <!-- 頁首：標題 + 右上登入資訊 -->
-      <header class="page-header">
-        <div>
-          <h1 class="page-title">承包人：我的邀請</h1>
-          <p class="page-subtitle">
-            以下是委託人直接指定邀請你承接的案件。你可以選擇接受或婉拒。
-          </p>
-        </div>
-        <div id="who" class="who-tag"></div>
-      </header>
-
-      <!-- 工具列 -->
-      <div class="toolbar">
-        <a class="btn btn-secondary" href="/contractorMyJobs.html">我的報價 / 案件</a>
-        <a class="btn btn-secondary" href="/contractorJobs.html">瀏覽可報價案件</a>
-        <a class="btn btn-secondary" href="/closedHistory.html">已結案歷史專案</a>
-        <a class="btn btn-secondary" href="/history.html">歷史紀錄</a>
-        <a class="btn btn-ghost" href="/logout">登出</a>
-      </div>
-
-      <div id="error" class="error-text"></div>
-
-      <!-- 卡片 + 表格 -->
-      <div class="card">
-        <p class="muted" style="margin: 0 0 8px;">
-          接受後，案件將進入執行中狀態；婉拒後，案件會轉為公開，其他承包人也可以報價。
+<body class="page">
+  <div class="page-inner">
+    
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">我的邀請</h1>
+        <p class="page-subtitle">
+          以下是委託人直接邀請您承接的案件。您可以選擇立即接受，或婉拒此邀請。
         </p>
+      </div>
+      <div style="align-self: center;">
+         <span id="who" class="who-tag">載入中...</span>
+      </div>
+    </header>
 
-        <div class="table-wrapper">
-          <table id="jobsTable" class="table">
-            <thead>
-              <tr>
-                <th style="width:60px;">ID</th>
-                <th>標題</th>
-                <th>委託人</th>
-                <th style="width:120px;">預算</th>
-                <th style="width:160px;">邀請時間</th>
-                <th style="width:220px;">動作</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+    <div class="toolbar">
+      
+      <div class="toolbar-left" style="display:flex; gap:10px;">
+        <!--<a class="btn btn-primary" href="/contractorMyInvitations.html">我的邀請</a>-->
+        <a class="btn btn-secondary" href="/contractorJobs.html">瀏覽可報價案件</a>
+        <a class="btn btn-secondary" href="/contractorMyJobs.html">我的報價/案件</a>
       </div>
 
+      <div class="toolbar-actions">
+        <a class="btn btn-secondary" href="/profile.html">個人頁面</a>
+        <a class="btn btn-secondary" href="/closedHistory.html">歷史結案</a>
+        <a class="btn btn-secondary" href="/history.html">操作紀錄</a>
+        <a class="btn btn-secondary btn-logout" href="/logout">登出</a>
+      </div>
     </div>
+
+    <div id="error" class="error-text"></div>
+
+    <div class="card">
+      <p class="text-muted" style="margin: 0 0 16px; font-size:14px;">
+        <span style="color: var(--accent-green); font-weight:600;">ℹ 說明：</span> 接受後，案件將直接進入執行階段；婉拒後，該案件將轉為公開，其他承包人也可進行報價。
+      </p>
+
+      <div class="table-wrapper">
+        <table id="jobsTable" class="table">
+          <thead>
+            <tr>
+              <th style="width:60px;">ID</th>
+              <th>案件標題</th>
+              <th>委託人</th>
+              <th style="width:120px;">預算</th>
+              <th style="width:180px;">邀請時間</th>
+              <th style="width:240px; text-align:right;">動作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -69,26 +97,15 @@
       return ct.includes("application/json") ? resp.json() : resp.text();
     }
 
-    const escapeHTML = s =>
-      s==null ? "" : String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-
-    const currency = new Intl.NumberFormat("zh-Hant-TW", {
-      style:"currency",
-      currency:"TWD",
-      maximumFractionDigits:0
-    });
-    const fmtMoney = n =>
-      (n==null ? '<span class="muted">—</span>' : currency.format(Number(n)));
-    const fmtDate = iso =>
-      (!iso ? "N/A" : new Date(iso).toLocaleString());
+    const escapeHTML = s => s==null ? "" : String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const currency = new Intl.NumberFormat("zh-Hant-TW", { style:"currency", currency:"TWD", maximumFractionDigits:0 });
+    const fmtMoney = n => (n==null ? '<span class="text-muted">—</span>' : `<span style="font-weight:600; color:#333;">${currency.format(Number(n))}</span>`);
+    const fmtDate = iso => (!iso ? "N/A" : new Date(iso).toLocaleString());
 
     async function loadMe() {
       const me = await fetchJSON("/me");
       if (!me) return;
-      const who = document.getElementById("who");
-      if (who) {
-        who.textContent = `登入中：${me.role} ${me.username}`;
-      }
+      document.getElementById("who").textContent = `${me.role === 'client' ? '委託人' : '承包人'} · ${me.username}`;
     }
 
     async function loadJobs() {
@@ -99,7 +116,7 @@
 
       if (!data.items || data.items.length === 0) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="6" class="muted">目前沒有任何邀請</td>`;
+        tr.innerHTML = `<td colspan="6" class="text-muted" style="text-align:center; padding: 40px 0;">目前沒有任何邀請</td>`;
         tbody.appendChild(tr);
         return;
       }
@@ -107,24 +124,25 @@
       for (const j of data.items) {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${j.id}</td>
-          <td>${escapeHTML(j.title)}</td>
-          <td>${escapeHTML(j.client_name)}</td>
+          <td class="text-muted" style="font-size: 14px;">#${j.id}</td>
+          <td><span class="job-title-text">${escapeHTML(j.title)}</span></td>
+          <td><span style="color:#555;">${escapeHTML(j.client_name)}</span></td>
           <td>${fmtMoney(j.budget)}</td>
-          <td>${fmtDate(j.created_at)}</td>
-          <td>
-            <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${j.id}">查看詳情</a>
-            <form action="/invitation/accept" method="POST"
-                  style="display:inline-block; margin:0 4px;">
-              <input type="hidden" name="job_id" value="${j.id}">
-              <button type="submit" class="btn btn-primary btn-sm">接受</button>
-            </form>
-            <form action="/invitation/decline" method="POST"
-                  style="display:inline-block;"
-                  onsubmit="return confirm('確定要婉拒嗎？婉拒後案件將轉為公開。')">
-              <input type="hidden" name="job_id" value="${j.id}">
-              <button type="submit" class="btn btn-secondary btn-sm">婉拒</button>
-            </form>
+          <td class="text-muted" style="font-size:14px;">${fmtDate(j.created_at)}</td>
+          <td style="text-align:right;">
+            <div style="display:flex; justify-content:flex-end; gap:6px;">
+              <a class="btn btn-secondary btn-sm" href="/jobDetail.html?job_id=${j.id}">詳情</a>
+              
+              <form action="/invitation/accept" method="POST" style="margin:0;">
+                <input type="hidden" name="job_id" value="${j.id}">
+                <button type="submit" class="btn btn-primary btn-sm">接受</button>
+              </form>
+              
+              <form action="/invitation/decline" method="POST" style="margin:0;" onsubmit="return confirm('確定要婉拒嗎？婉拒後案件將轉為公開。')">
+                <input type="hidden" name="job_id" value="${j.id}">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:#666;">婉拒</button>
+              </form>
+            </div>
           </td>
         `;
         tbody.appendChild(tr);

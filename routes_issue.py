@@ -55,27 +55,36 @@ async def get_issues(job_id: int, user=Depends(session_user), conn=Depends(getDB
         raise HTTPException(status_code=403, detail="你不是此案件的相關人")
 
     async with conn.cursor() as cur:
-        # 查 issues 本體
+        # ✅ 查 issues：加上建立者名稱
         await cur.execute(
             """
-            SELECT id, title, description, status, creator_id, created_at, closed_at
-            FROM job_issues
-            WHERE job_id = %s
-            ORDER BY created_at ASC
+            SELECT
+                i.id, i.title, i.description, i.status,
+                i.creator_id,
+                u.username AS creator_name,
+                i.created_at, i.closed_at
+            FROM job_issues i
+            LEFT JOIN users u ON u.id = i.creator_id
+            WHERE i.job_id = %s
+            ORDER BY i.created_at ASC
             """,
             (job_id,),
         )
         issues = await cur.fetchall()
 
-        # 查所有留言（一次查全部避免 N+1）
+        # ✅ 查 comments：加上留言者名稱
         await cur.execute(
             """
-            SELECT issue_id, author_id, content, created_at
-            FROM job_issue_comments
-            WHERE issue_id IN (
-                SELECT id FROM job_issues WHERE job_id = %s
-            )
-            ORDER BY created_at ASC
+            SELECT
+                c.issue_id,
+                c.author_id,
+                u.username AS author_name,
+                c.content,
+                c.created_at
+            FROM job_issue_comments c
+            LEFT JOIN users u ON u.id = c.author_id
+            WHERE c.issue_id IN (SELECT id FROM job_issues WHERE job_id = %s)
+            ORDER BY c.created_at ASC
             """,
             (job_id,),
         )
@@ -88,6 +97,7 @@ async def get_issues(job_id: int, user=Depends(session_user), conn=Depends(getDB
         issue_map[c["issue_id"]]["comments"].append(c)
 
     return list(issue_map.values())
+
 
 
 # ------------------------------------------------------------
