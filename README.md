@@ -1,93 +1,127 @@
-# 軟體工程期末專題 - 工作委託平台 (整合版)
 
-## 📌 專案說明
-本專案用於整合期中專題的延伸功能模組。為避免程式碼衝突，目前採用 **分支開發 (Branch-based)** 策略，最後再合併至主分支。
+# TaskLink 工作委託與接案平台
 
-## 🚀 協作規則 (必讀！)
+## 一、專案簡介
 
-### 1. 分支架構
-大家請在各自負責的分支上進行開發，**請勿直接推送到 `main`**。
-- **`main`**：最終整合區 (目前僅存放說明文件)。
-- **`feature/extension1_bidding`**：延伸一 (限時競標與版控) - **[已建立]**
-- **`feature/extension2_rating`**：延伸二 (評價機制) - **[請負責同學自行建立]**
-- **`feature/extension3_issue`**：延伸三 (Issue Tracker) - **[請負責同學自行建立]**
+本專題為一個以FastAPI + PostgreSQL為核心的「工作委託與接案平台」，系統提供委託人（Client）與承包人（Contractor）兩種角色，支援從案件建立、投標競標、選標、執行溝通、成果上傳、驗收退件、互相評價到結案管理的完整流程。
 
-### 2. 如何開始？(如果看完還是不確定要怎麼做可以往下滑，我有整理懶人包，照著做就可以了)
-請依照負責的模組，將原本的期中專案程式碼推送到對應分支：
 
-```powershell
-# 範例：負責評價機制的同學
-git init
-git checkout -b feature/extension2_rating
-git add .
-git commit -m "Init: Upload Extension 2"
-git remote add origin https://github.com/hsiu2005/SE-Final-Platform.git
-git push -u origin feature/extension2_rating
-```
------
+## 二、系統架構概述
 
-### 📢 期末專題 GitHub 上傳懶人包
+### 後端架構
+* Framework：FastAPI（非同步 API 架構）
+* Database：PostgreSQL
+* Database Access：psycopg（Async Connection Pool）
+* Session 管理：Starlette SessionMiddleware
+* API 架構設計：
 
-#### ⚠️ 第一步：接受邀請 (最重要！)
+  * `main.py`：系統入口與全域設定
+  * `db.py`：資料庫連線池與連線管理
+  * `deps.py`：登入狀態與角色權限驗證
+  * 各 `routes_*.py`：依功能與角色分類的 API 路由模組
 
-我有寄 GitHub 的邀請信給你們（應該在 Email 裡），請務必先點信裡的 **「Accept Invitation」(接受邀請)**，不然等一下會沒權限上傳喔。
+###  前端架構
 
-#### ⚠️ 第二步：開啟終端機
+* 使用 HTML / CSS / JavaScript
+* 各頁面透過呼叫 API 取得資料並動態顯示
+* 同一頁面可依「使用者角色 × 案件狀態」顯示不同操作介面（如 jobDetail）
 
-請用 VS Code 打開你寫好的 **專案資料夾**，然後開啟終端機 (Terminal)。
-*(確認終端機路徑是在你的資料夾裡面)*
+## 三、使用者角色
 
-#### ⚠️ 第三步：複製指令 (請依負責模組選擇)
+###  委託人（Client）
 
-為了防止衝突，請直接複製你負責的那一塊指令(建議一行一行貼，比較不會出錯)，貼進終端機按 Enter 執行即可：
+* 建立與管理委託案件
+* 設定投標截止日
+* 查看所有投標提案
+* 選擇承包人
+* 驗收成果（接受或退件）
+* 建立與管理 Issue
+* 查看歷史案件與操作紀錄
+* 對承包人進行評價
 
-**🧑‍💻 負責【延伸二：評價機制】的同學請貼這串：**
+###  承包人（Contractor）
 
-```powershell
-# 清除舊設定以防衝突
-rm -Recurse -Force .git
+* 瀏覽可投標案件
+* 提交報價與提案書（PDF）
+* 接受或拒絕邀請案件
+* 上傳結案成果檔案（支援多版本）
+* 回覆 Issue 與討論
+* 查看自己的案件與歷史紀錄
+* 對委託人進行評價
 
-# 初始化並上傳到專屬分支
-git init
-git checkout -b feature/extension2_rating
-git add .
-git commit -m "Init: Upload Extension 2"
-git remote add origin https://github.com/hsiu2005/SE-Final-Platform.git
-git push -u origin feature/extension2_rating
-```
 
-**🧑‍💻 負責【延伸三：Issue Tracker】的同學請貼這串：**
+## 四、核心功能說明
 
-```powershell
-# 清除舊設定以防衝突
-rm -Recurse -Force .git
+###  1. 帳號與身分管理
 
-# 初始化並上傳到專屬分支
-git init
-git checkout -b feature/extension3_issue
-git add .
-git commit -m "Init: Upload Extension 3"
-git remote add origin https://github.com/hsiu2005/SE-Final-Platform.git
-git push -u origin feature/extension3_issue
-```
+* 帳號註冊（選擇角色）
+* 登入 / 登出
+* Session-based 登入狀態維護
+* API 權限控管（未登入 / 角色錯誤即拒絕）
 
-*(執行最後一行時若跳出登入視窗，請登入你們自己的 GitHub 帳號)*
 
------
+###  2. 案件管理（期中核心功能）
 
-**💡 推完之後想看大家的程式碼？**
-上傳成功後，如果你想把雲端上其他人的程式碼（包含主分支說明）抓下來看，可以輸入：
+#### 委託人
 
-```bash
-git fetch --all
-```
+* 建立 / 修改案件需求
+* 設定案件內容、預算、截止日
+* 查看案件狀態與進度
+* 結案管理（驗收、退件、結案）
 
-然後就可以自由切換分支查看了：
+#### 承包人
 
-  * 看我的部分：`git checkout feature/extension1_bidding`
-  * 看首頁說明：`git checkout main`
-  * 切回自己的：`git checkout [你的分支名稱]`
+* 查詢與瀏覽案件
+* 提出報價與承包意願
+* 上傳結案檔案
 
-### 有任何問題都可以提出來一起討論，謝謝大家！
+
+## 五、期末延伸一：限時競標與檔案版本控管
+
+###  限時競標機制
+
+* 委託人建立案件時必須設定投標截止日
+* 截止日前：
+  * 多位承包人可同時投標
+* 截止後：
+  * 禁止再投標
+  * 委託人可選擇其中一位承包人
+
+
+###  提案書上傳與檔名安全處理
+
+* 投標時必須上傳PDF 格式提案書
+* 實際儲存檔名使用：
+  * 案件 ID + 使用者 ID + UUID
+* 原始檔名另存於資料庫
+* 避免不同使用者或不同次上傳覆蓋檔案
+
+###  結案成果檔案版本控管
+
+* 承包人上傳結案成果時：
+  * 系統自動產生新版本
+  * 每個版本皆保留（不可覆蓋）
+* 支援：
+  * 退件後重新上傳
+  * 多版本歷史紀錄
+  * 提供所有版本下載連結
+* 保留完整修改歷程
+
+## 六、期末延伸二：評價機制
+
+* 案件結束後，甲乙雙方可互相評價
+* 採用多維度星等評分（1–5）
+* 並可附加文字評論
+* 歷史評價可於案件與投標畫面中查看，作為信譽參考
+
+
+
+## 七、期末延伸三：Issue Tracker
+
+* 委託人於結案階段可建立多個 Issue
+* 承包人可回覆 Issue
+* 雙方可針對 Issue 持續留言討論
+* 委託人可將 Issue 標記為已完成
+* 所有 Issue 完成後，案件才可正式結案
 
 
